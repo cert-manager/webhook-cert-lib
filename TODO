@@ -1,0 +1,5 @@
+- maybe remove dependency on controller-runtime (use client-go directly instead)
+- make sure to re-reconcile certificates before they expire
+- Can we make the solution leader-election-less? Does it make sense that we use the existing cr leader election or should we create a seperate leader-election just for the logic in this library?
+- Scope down controller RBAC to single CA Secret resource.
+- Use cli flags in the program to list the injectables, allowing use to scope down the injectable RBAC.
