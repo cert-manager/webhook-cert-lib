@@ -18,11 +18,13 @@ package leadercontrollers
 
 import (
 	"context"
+	"crypto/x509"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -61,4 +63,29 @@ func (r Reconciler) caSecretSource(handler handler.TypedEventHandler[*corev1.Sec
 		predicate.NewTypedPredicateFuncs[*corev1.Secret](func(obj *corev1.Secret) bool {
 			return obj.Namespace == r.Opts.Namespace && obj.Name == r.Opts.Name
 		}))
+}
+
+type CertRenewalTimer struct {
+	timer *time.Timer
+	C     chan event.TypedGenericEvent[*corev1.Secret]
+}
+
+func NewCertRenewalTimer(d time.Duration, fn func() event.TypedGenericEvent[*corev1.Secret]) *CertRenewalTimer {
+	crt := &CertRenewalTimer{
+		timer: time.NewTimer(d),
+		C:     make(chan event.TypedGenericEvent[*corev1.Secret], 1),
+	}
+	go func() {
+		defer close(crt.C)
+		for {
+			<-crt.timer.C
+			crt.C <- fn()
+		}
+	}()
+	return crt
+}
+
+func (t CertRenewalTimer) RescheduleFromIssuedCert(cert *x509.Certificate) {
+	// renew certificate when the current one is 2/3 of the way through its life
+	t.timer.Reset(cert.NotAfter.Sub(cert.NotBefore) * 2 / 3)
 }

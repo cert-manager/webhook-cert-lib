@@ -19,18 +19,23 @@ package authority
 import (
 	"context"
 	"crypto/tls"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/cert-manager/webhook-cert-lib/internal/pki"
 	"github.com/cert-manager/webhook-cert-lib/pkg/authority/cert"
+	leadercontrollers "github.com/cert-manager/webhook-cert-lib/pkg/authority/leader_controllers"
 )
 
 // LeafCertReconciler reconciles the leaf/serving certificate
@@ -38,13 +43,25 @@ type LeafCertReconciler struct {
 	Options           Options
 	Cache             cache.Cache
 	CertificateHolder *cert.CertificateHolder
+	renewalTimer      *leadercontrollers.CertRenewalTimer
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *LeafCertReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	// Set initial timer duration to 1 hour as the timer should be rescheduled by the certificate issued at startup
+	r.renewalTimer = leadercontrollers.NewCertRenewalTimer(time.Hour, func() event.TypedGenericEvent[*corev1.Secret] {
+		return event.TypedGenericEvent[*corev1.Secret]{Object: &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      r.Options.CAOptions.Name,
+				Namespace: r.Options.CAOptions.Namespace,
+			},
+		}}
+	})
+
 	return ctrl.NewControllerManagedBy(mgr).
 		Named("cert_leaf").
 		Watches(&corev1.Secret{}, &handler.TypedEnqueueRequestForObject[client.Object]{}).
+		WatchesRawSource(source.Channel(r.renewalTimer.C, &handler.TypedEnqueueRequestForObject[*corev1.Secret]{})).
 		// Disable leader election since all replicas need a serving certificate
 		WithOptions(controller.TypedOptions[ctrl.Request]{NeedLeaderElection: ptr.To(false)}).
 		Complete(r)
@@ -80,6 +97,8 @@ func (r *LeafCertReconciler) reconcileSecret(ctx context.Context, req ctrl.Reque
 	if err != nil {
 		return err
 	}
+	// Schedule timer for next certificate renewal
+	r.renewalTimer.RescheduleFromIssuedCert(cert)
 
 	pkData, err := pki.EncodePrivateKey(pk)
 	if err != nil {
