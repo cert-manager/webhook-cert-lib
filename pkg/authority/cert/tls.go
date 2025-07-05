@@ -18,19 +18,15 @@ package cert
 
 import (
 	"crypto"
-	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"errors"
-	"math/big"
 	"sync/atomic"
 	"time"
 
 	"github.com/cert-manager/webhook-cert-lib/internal/pki"
 )
-
-var serialNumberLimit = new(big.Int).Lsh(big.NewInt(1), 128)
 
 func GenerateLeaf(
 	leafDNSNames []string,
@@ -42,15 +38,8 @@ func GenerateLeaf(
 		return nil, nil, err
 	}
 
-	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
-	if err != nil {
-		return nil, nil, err
-	}
 	now := time.Now()
-	cert := &x509.Certificate{
-		Version:      3,
-		SerialNumber: serialNumber,
-
+	template := &x509.Certificate{
 		DNSNames: leafDNSNames,
 
 		// Validity
@@ -67,12 +56,12 @@ func GenerateLeaf(
 	}
 
 	// Cap the validity such that it does not extend the validity of the CA
-	if cert.NotAfter.After(caCert.NotAfter) {
-		cert.NotAfter = caCert.NotAfter
+	if template.NotAfter.After(caCert.NotAfter) {
+		template.NotAfter = caCert.NotAfter
 	}
 
 	// Sign certificate using CA
-	_, cert, err = pki.SignCertificate(cert, caCert, pk.Public(), caPk)
+	_, cert, err := pki.SignCertificate(template, caCert, pk.Public(), caPk)
 	return cert, pk, err
 }
 
@@ -84,15 +73,8 @@ func GenerateCA(
 		return nil, nil, err
 	}
 
-	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
-	if err != nil {
-		return nil, nil, err
-	}
 	now := time.Now()
-	cert := &x509.Certificate{
-		Version:      3,
-		SerialNumber: serialNumber,
-
+	template := &x509.Certificate{
 		Subject: pkix.Name{
 			CommonName: "cert-manager-dynamic-ca",
 		},
@@ -112,7 +94,7 @@ func GenerateCA(
 	}
 
 	// self sign the root CA
-	_, cert, err = pki.SignCertificate(cert, cert, pk.Public(), pk)
+	_, cert, err := pki.SignCertificate(template, template, pk.Public(), pk)
 	return cert, pk, err
 }
 
