@@ -18,10 +18,10 @@ package authority
 
 import (
 	"context"
-	"crypto/tls"
+	"crypto"
+	"crypto/x509"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
@@ -51,25 +51,32 @@ func (r *LeafCertReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func (r *LeafCertReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	return ctrl.Result{}, r.reconcileSecret(ctx, req)
-}
-
-func (r *LeafCertReconciler) reconcileSecret(ctx context.Context, req ctrl.Request) error {
 	caSecret := &corev1.Secret{}
 	if err := r.Cache.Get(ctx, req.NamespacedName, caSecret); err != nil {
-		if errors.IsNotFound(err) {
-			return nil
-		}
-		return err
+		return ctrl.Result{}, err
 	}
 
+	crt, pk, err := r.GenerateCertificate(caSecret)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	tlsCert, err := cert.GetTLSCertificate(crt, pk)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	r.CertificateHolder.SetCertificate(&tlsCert)
+
+	return ctrl.Result{RequeueAfter: cert.RenewCertAfter(crt)}, nil
+}
+
+func (r *LeafCertReconciler) GenerateCertificate(caSecret *corev1.Secret) (*x509.Certificate, crypto.Signer, error) {
 	caCert, err := pki.DecodeX509CertificateBytes(caSecret.Data[corev1.TLSCertKey])
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 	caPk, err := pki.DecodePrivateKeyBytes(caSecret.Data[corev1.TLSPrivateKeyKey])
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 
 	cert, pk, err := cert.GenerateLeaf(
@@ -78,24 +85,7 @@ func (r *LeafCertReconciler) reconcileSecret(ctx context.Context, req ctrl.Reque
 		caCert, caPk,
 	)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
-
-	pkData, err := pki.EncodePrivateKey(pk)
-	if err != nil {
-		return err
-	}
-
-	certData, err := pki.EncodeX509(cert)
-	if err != nil {
-		return err
-	}
-
-	tlsCert, err := tls.X509KeyPair(certData, pkData)
-	if err != nil {
-		return err
-	}
-
-	r.CertificateHolder.SetCertificate(&tlsCert)
-	return nil
+	return cert, pk, err
 }

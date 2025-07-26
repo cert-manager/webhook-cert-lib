@@ -98,6 +98,10 @@ func GenerateCA(
 	return cert, pk, err
 }
 
+func RenewCertAfter(cert *x509.Certificate) time.Duration {
+	return time.Until(cert.NotBefore.Add(cert.NotAfter.Sub(cert.NotBefore) * 2 / 3))
+}
+
 var (
 	ErrCertNotAvailable = errors.New("no tls.Certificate available")
 )
@@ -116,4 +120,22 @@ func (h *CertificateHolder) GetCertificate(_ *tls.ClientHelloInfo) (*tls.Certifi
 
 func (h *CertificateHolder) SetCertificate(cert *tls.Certificate) {
 	h.certP.Store(cert)
+}
+
+func GetTLSCertificate(cert *x509.Certificate, pk crypto.Signer) (tls.Certificate, error) {
+	pkData, err := pki.EncodePrivateKey(pk)
+	if err != nil {
+		return tls.Certificate{}, err
+	}
+
+	certData, err := pki.EncodeX509(cert)
+	if err != nil {
+		return tls.Certificate{}, err
+	}
+
+	tlsCert, err := tls.X509KeyPair(certData, pkData)
+	if err != nil {
+		return tls.Certificate{}, err
+	}
+	return tlsCert, nil
 }
