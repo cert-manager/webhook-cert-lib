@@ -30,7 +30,7 @@ import (
 	"github.com/cert-manager/webhook-cert-lib/internal/pki"
 	"github.com/cert-manager/webhook-cert-lib/pkg/authority"
 	"github.com/cert-manager/webhook-cert-lib/pkg/authority/api"
-	"github.com/cert-manager/webhook-cert-lib/pkg/authority/cert"
+	"github.com/cert-manager/webhook-cert-lib/pkg/authority/certificate"
 	leadercontrollers "github.com/cert-manager/webhook-cert-lib/pkg/authority/leader_controllers"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -41,7 +41,7 @@ var _ = Describe("Leaf Certificate Controller", Ordered, func() {
 	var (
 		caSecret    *corev1.Secret
 		caSecretRef types.NamespacedName
-		certHolder  *cert.CertificateHolder
+		certHolder  *pki.TLSCertificateHolder
 	)
 
 	BeforeAll(func() {
@@ -60,7 +60,7 @@ var _ = Describe("Leaf Certificate Controller", Ordered, func() {
 		ns.Name = opts.CAOptions.Namespace
 		Expect(k8sClient.Create(ctx, ns)).To(Succeed())
 
-		caCert, caPK, err := cert.GenerateCA(opts.CAOptions.Duration)
+		caCert, caPK, err := certificate.GenerateCA(opts.CAOptions.Duration)
 		Expect(err).ToNot(HaveOccurred())
 		caCertBytes, err := pki.EncodeX509(caCert)
 		Expect(err).ToNot(HaveOccurred())
@@ -89,7 +89,7 @@ var _ = Describe("Leaf Certificate Controller", Ordered, func() {
 		})
 		Expect(err).ToNot(HaveOccurred())
 
-		certHolder = &cert.CertificateHolder{}
+		certHolder = &pki.TLSCertificateHolder{}
 		controller := &authority.LeafCertReconciler{
 			Options:           opts,
 			Cache:             k8sManager.GetCache(),

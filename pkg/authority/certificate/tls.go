@@ -14,15 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package cert
+package certificate
 
 import (
 	"crypto"
-	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"errors"
-	"sync/atomic"
 	"time"
 
 	"github.com/cert-manager/webhook-cert-lib/internal/pki"
@@ -98,22 +95,6 @@ func GenerateCA(
 	return cert, pk, err
 }
 
-var (
-	ErrCertNotAvailable = errors.New("no tls.Certificate available")
-)
-
-type CertificateHolder struct {
-	certP atomic.Pointer[tls.Certificate]
-}
-
-func (h *CertificateHolder) GetCertificate(_ *tls.ClientHelloInfo) (*tls.Certificate, error) {
-	cert := h.certP.Load()
-	if cert == nil {
-		return nil, ErrCertNotAvailable
-	}
-	return cert, nil
-}
-
-func (h *CertificateHolder) SetCertificate(cert *tls.Certificate) {
-	h.certP.Store(cert)
+func RenewAfter(cert *x509.Certificate) time.Duration {
+	return time.Until(cert.NotBefore.Add(cert.NotAfter.Sub(cert.NotBefore) * 2 / 3))
 }

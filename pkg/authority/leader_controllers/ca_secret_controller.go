@@ -19,9 +19,10 @@ package leadercontrollers
 import (
 	"context"
 	"crypto"
+	"crypto/tls"
 	"crypto/x509"
+	"time"
 
-	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -35,7 +36,7 @@ import (
 
 	"github.com/cert-manager/webhook-cert-lib/internal/pki"
 	"github.com/cert-manager/webhook-cert-lib/pkg/authority/api"
-	"github.com/cert-manager/webhook-cert-lib/pkg/authority/cert"
+	"github.com/cert-manager/webhook-cert-lib/pkg/authority/certificate"
 )
 
 // CASecretReconciler reconciles a CA Secret object
@@ -62,40 +63,51 @@ func (r *CASecretReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func (r *CASecretReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	return ctrl.Result{}, r.reconcileSecret(ctx, req)
-}
-
-func (r *CASecretReconciler) reconcileSecret(ctx context.Context, req ctrl.Request) error {
 	secret := &corev1.Secret{}
 	if err := r.Cache.Get(ctx, req.NamespacedName, secret); err != nil {
 		if !errors.IsNotFound(err) {
-			return err
+			return ctrl.Result{}, err
 		}
-		// Secret does not exist - let's create it
+		// Secret does not exist - let's create it by setting namespace/name
 		secret.Namespace = req.Namespace
 		secret.Name = req.Name
 	}
 
-	generate, caCert, caPk := r.needsGenerate(secret)
+	caCert, err := r.reconcileSecret(ctx, secret)
+	return ctrl.Result{RequeueAfter: certificate.RenewAfter(caCert)}, err
+}
 
-	if generate || secret.Annotations[api.RenewCertificateSecretAnnotation] != secret.Annotations[api.RenewHandledCertificateSecretAnnotation] {
-		var err error
-		caCert, caPk, err = cert.GenerateCA(r.Opts.Duration)
+func (r *CASecretReconciler) reconcileSecret(ctx context.Context, secret *corev1.Secret) (caCert *x509.Certificate, err error) {
+	var caPk crypto.Signer
+
+	if required, reason := caRequiresRegeneration(secret); required {
+		log.FromContext(ctx).Info("Will regenerate CA", "reason", reason)
+
+		caCert, caPk, err = certificate.GenerateCA(r.Opts.Duration)
 		if err != nil {
-			return err
+			return caCert, err
+		}
+	} else {
+		caCert, err = pki.DecodeX509CertificateBytes(secret.Data[corev1.TLSCertKey])
+		if err != nil {
+			return caCert, err
+		}
+		caPk, err = pki.DecodePrivateKeyBytes(secret.Data[corev1.TLSPrivateKeyKey])
+		if err != nil {
+			return caCert, err
 		}
 	}
 
 	certBytes, err := pki.EncodeX509(caCert)
 	if err != nil {
-		return err
+		return caCert, err
 	}
 	pkBytes, err := pki.EncodePrivateKey(caPk)
 	if err != nil {
-		return err
+		return caCert, err
 	}
 
-	caBundleBytes := addCertToCABundle(log.FromContext(ctx), secret.Data[api.TLSCABundleKey], caCert)
+	caBundleBytes := addCertToCABundle(ctx, secret.Data[api.TLSCABundleKey], caCert)
 
 	ac := corev1ac.Secret(secret.Name, secret.Namespace).
 		WithLabels(map[string]string{
@@ -114,14 +126,14 @@ func (r *CASecretReconciler) reconcileSecret(ctx context.Context, req ctrl.Reque
 		})
 	}
 
-	return r.Patcher.Patch(ctx, secret, newApplyPatch(ac), client.ForceOwnership, fieldOwner)
+	return caCert, r.Patcher.Patch(ctx, secret, newApplyPatch(ac), client.ForceOwnership, fieldOwner)
 }
 
-func addCertToCABundle(logger logr.Logger, caBundleBytes []byte, caCert *x509.Certificate) []byte {
+func addCertToCABundle(ctx context.Context, caBundleBytes []byte, caCert *x509.Certificate) []byte {
 	certPool := pki.NewCertPool(pki.WithFilteredExpiredCerts(true))
 
 	if err := certPool.AddCertsFromPEM(caBundleBytes); err != nil {
-		logger.Error(err, "failed to re-use existing CAs in new set of CAs")
+		log.FromContext(ctx).Error(err, "failed to re-use existing CAs in new set of CAs")
 	}
 	// TODO: handle AddCert returning false? I expect this will never happen.
 	certPool.AddCert(caCert)
@@ -129,21 +141,37 @@ func addCertToCABundle(logger logr.Logger, caBundleBytes []byte, caCert *x509.Ce
 	return []byte(certPool.PEM())
 }
 
-func (r *CASecretReconciler) needsGenerate(secret *corev1.Secret) (bool, *x509.Certificate, crypto.Signer) {
-	caCert, err := pki.DecodeX509CertificateBytes(secret.Data[corev1.TLSCertKey])
-	if err != nil {
-		return true, nil, nil
-	}
-	caPk, err := pki.DecodePrivateKeyBytes(secret.Data[corev1.TLSPrivateKeyKey])
-	if err != nil {
-		return true, nil, nil
+// caRequiresRegeneration will check data in a Secret resource and return true
+// if the CA needs to be regenerated for any reason.
+func caRequiresRegeneration(s *corev1.Secret) (bool, string) {
+	if s.Annotations[api.RenewCertificateSecretAnnotation] != s.Annotations[api.RenewHandledCertificateSecretAnnotation] {
+		return true, "Forced renewal."
 	}
 
-	equal, err := pki.PublicKeysEqual(caCert.PublicKey, caPk.Public())
-	if !equal || err != nil {
-		return true, nil, nil
+	if s.Data == nil {
+		return true, "Missing data in CA secret."
+	}
+	pkData := s.Data[corev1.TLSPrivateKeyKey]
+	certData := s.Data[corev1.TLSCertKey]
+	if len(pkData) == 0 || len(certData) == 0 {
+		return true, "Missing data in CA secret."
+	}
+	cert, err := tls.X509KeyPair(certData, pkData)
+	if err != nil {
+		return true, "Failed to parse data in CA secret."
 	}
 
-	// TODO: Trigger renew check due
-	return false, caCert, caPk
+	x509Cert, err := x509.ParseCertificate(cert.Certificate[0])
+	if err != nil {
+		return true, "Internal error parsing x509 certificate."
+	}
+	if !x509Cert.IsCA {
+		return true, "Stored certificate is not marked as a CA."
+	}
+	// renew the root CA when the current one is 2/3 of the way through its life
+	if time.Until(x509Cert.NotAfter) < (x509Cert.NotAfter.Sub(x509Cert.NotBefore) / 3) {
+		return true, "CA certificate is nearing expiry."
+	}
+
+	return false, ""
 }

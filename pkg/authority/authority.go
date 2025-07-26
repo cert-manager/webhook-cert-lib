@@ -29,8 +29,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/cert-manager/webhook-cert-lib/internal/pki"
 	"github.com/cert-manager/webhook-cert-lib/pkg/authority/api"
-	"github.com/cert-manager/webhook-cert-lib/pkg/authority/cert"
 	leadercontrollers "github.com/cert-manager/webhook-cert-lib/pkg/authority/leader_controllers"
 	"github.com/cert-manager/webhook-cert-lib/pkg/authority/leader_controllers/injectable"
 )
@@ -54,12 +54,12 @@ type Options struct {
 type Authority struct {
 	Options Options
 
-	certificateHolder *cert.CertificateHolder
+	certificateHolder *pki.TLSCertificateHolder
 }
 
 func (o *Authority) ServingCertificate() func(config *tls.Config) {
 	if o.certificateHolder == nil {
-		o.certificateHolder = &cert.CertificateHolder{}
+		o.certificateHolder = &pki.TLSCertificateHolder{}
 	}
 	return func(config *tls.Config) {
 		config.GetCertificate = func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
@@ -99,8 +99,8 @@ func (o *Authority) SetupWithManager(mgr ctrl.Manager) error {
 			}),
 		},
 	}
-	for _, injectable := range o.Options.Injectables {
-		cacheByObject[newUnstructured(injectable)] = cache.ByObject{
+	for _, i := range o.Options.Injectables {
+		cacheByObject[newUnstructured(i)] = cache.ByObject{
 			Label: labels.SelectorFromSet(labels.Set{
 				api.WantInjectFromSecretNameLabel:      o.Options.CAOptions.Name,
 				api.WantInjectFromSecretNamespaceLabel: o.Options.CAOptions.Namespace,
@@ -140,8 +140,8 @@ func (o *Authority) SetupWithManager(mgr ctrl.Manager) error {
 		&leadercontrollers.CASecretReconciler{Reconciler: r},
 		&LeafCertReconciler{Options: o.Options, Cache: controllerCache, CertificateHolder: o.certificateHolder},
 	}
-	for _, injectable := range o.Options.Injectables {
-		controllers = append(controllers, &leadercontrollers.InjectableReconciler{Reconciler: r, Injectable: injectable})
+	for _, i := range o.Options.Injectables {
+		controllers = append(controllers, &leadercontrollers.InjectableReconciler{Reconciler: r, Injectable: i})
 	}
 	for _, c := range controllers {
 		if err := c.SetupWithManager(mgr); err != nil {

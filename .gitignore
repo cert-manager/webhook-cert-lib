@@ -13,3 +13,4 @@ _bin/
 *.bak
 /go.work.sum
 **/go.work
+*.test
