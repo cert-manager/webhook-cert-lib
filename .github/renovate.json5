@@ -2,51 +2,58 @@
   $schema: 'https://docs.renovatebot.com/renovate-schema.json',
   enabled: true,
   extends: [
-    'config:recommended',
-    ':dependencyDashboard',
+    'config:best-practices',
     ':gitSignOff',
-    'helpers:pinGitHubActionDigests',
+    ':semanticCommits',
+    ':disableVulnerabilityAlerts',
+    ':prConcurrentLimit10', // Set a limit to avoid too many PRs, at least on the first run
+    ':prHourlyLimitNone',
   ],
   timezone: 'Europe/London',
   labels: [
     'dependencies',
   ],
-  semanticCommits: 'enabled',
   postUpgradeTasks: {
     commands: [
-      "make generate",
+      'make generate',
     ],
     executionMode: 'branch',
   },
-  vulnerabilityAlerts: {
-    enabled: false,
-  },
   packageRules: [
+    // Currently, there seems to be issues with permissions which doesn't allow Renovate to update actions.
     {
-      description: 'Miscellaneous dependencies',
-      matchDatasources: [
-        'go',
+      groupName: 'GitHub Actions',
+      matchManagers: [
+        'github-actions',
       ],
-      groupName: 'misc',
-      matchPackageNames: ['/.*/'],
+      matchPackageNames: [
+        '/.*/',
+      ],
     },
     {
-      description: 'Kubernetes dependencies',
-      matchDatasources: [
-        'go',
+      groupName: 'Misc Go deps',
+      matchManagers: [
+        'gomod',
+      ],
+      matchPackageNames: [
+        '/.*/',
+      ],
+    },
+    {
+      groupName: 'Kubernetes Go deps',
+      matchManagers: [
+        'gomod',
       ],
       matchPackageNames: [
         '/^sigs.k8s.io/',
         '/^k8s.io/',
       ],
-      groupName: 'kubernetes',
     },
     {
-      description: 'Cloud dependencies',
-      matchDatasources: [
-        'go',
+      groupName: 'Cloud Go deps',
+      matchManagers: [
+        'gomod',
       ],
-      groupName: 'cloud',
       matchPackageNames: [
         '/^github.com/Azure/',
         '/^github.com/AzureAD/',
@@ -54,31 +61,14 @@
       ],
     },
     {
-      description: 'Golang dependencies',
-      groupName: 'go-deps',
-      matchPackageNames: [
-        '/^golang.org/x/',
-        '/^github.com/golang/',
-        '/^github.com/golang-jwt/',
-        '/^github.com/google/',
-        '/^github.com/googleapis/',
-        '/^google.golang.org/',
-        '/^gopkg.in/',
-      ],
-    },
-    // Currently, there seems to be issues with permissions which doesn't allow renovate to update actions.
-    {
-      description: 'GitHub Actions',
-      matchManagers: [
-        'github-actions',
-      ],
-      groupName: 'github-actions',
-    },
-    {
       description: 'Disable all cert-manager related dependencies',
-      matchDatasources: ['go'],
-      matchPackageNames: ['/^github.com/cert-manager/'],
-      allowedVersions: ['!/0.0.0/'],
+      matchManagers: [
+        'gomod',
+      ],
+      matchPackageNames: [
+        '/^github.com/cert-manager/',
+      ],
+      allowedVersions: '!/0.0.0/',
       enabled: false,
     },
   ],
@@ -86,6 +76,7 @@
     '**/vendor/**',
     '**/node_modules/**',
     '**/__tests__/**',
+    // The following files are managed from makefile-modules, and should be ignored by Renovate in other projects.
     '.github/workflows/govulncheck.yaml',
     '.github/workflows/make-self-upgrade.yaml',
     '.github/dependabot.yaml',
