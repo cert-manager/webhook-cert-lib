@@ -1,6 +1,7 @@
 {
   $schema: 'https://docs.renovatebot.com/renovate-schema.json',
   enabled: true,
+  separateMajorMinor: false,
   extends: [
     'config:best-practices',
     ':gitSignOff',
@@ -55,10 +56,25 @@
         'gomod',
       ],
       matchPackageNames: [
+        '/^github.com/akamai/',
+        '/^github.com/aws/',
         '/^github.com/Azure/',
         '/^github.com/AzureAD/',
-        '/^github.com/aws/',
+        '/^github.com/cloudflare/',
+        '/^github.com/digitalocean/',
+        '/^github.com/Venafi',
+        '/^google.golang.org/api'
       ],
+    },
+    {
+      groupName: 'golang.org/x deps',
+      matchManagers: [
+        'gomod',
+      ],
+      matchPackageNames: [
+        '/^golang.org/x/',
+      ],
+      addLabels: ['skip-review'], // Adding label to allow PRs to automerge
     },
     {
       description: 'Disable all cert-manager related dependencies',
