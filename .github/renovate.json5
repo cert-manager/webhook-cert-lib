@@ -13,6 +13,9 @@
   labels: [
     'dependencies',
   ],
+  allowedCommands: [
+    'make generate',
+  ],
   postUpgradeTasks: {
     commands: [
       'make generate',
