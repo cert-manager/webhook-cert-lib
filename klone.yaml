@@ -33,8 +33,8 @@ targets:
       repo_path: modules/klone
     - folder_name: repository-base
       repo_url: https://github.com/cert-manager/makefile-modules.git
-      repo_ref: main
-      repo_hash: 00f59b61a1e4414d5c605486a155c669f1f0dea7
+      repo_ref: octo-sts-poc
+      repo_hash: 2b54d296fc2297fe5305121a5aaed5b7d46a13a3
       repo_path: modules/repository-base
     - folder_name: tools
       repo_url: https://github.com/cert-manager/makefile-modules.git
