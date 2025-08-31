@@ -20,11 +20,12 @@
   labels: [
     'dependencies',
     'kind/cleanup',
+    'ok-to-test',
     'release-note-none',
   ],
   postUpgradeTasks: {
     commands: [
-      'make generate',
+      'make vendor-go generate',
     ],
     executionMode: 'branch',
   },
