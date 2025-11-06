@@ -20,14 +20,13 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/cert-manager/webhook-cert-lib/internal/pki"
+	"github.com/cert-manager/webhook-cert-lib/pkg/authority/api"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/envtest/komega"
-
-	"github.com/cert-manager/webhook-cert-lib/internal/pki"
-	"github.com/cert-manager/webhook-cert-lib/pkg/authority/api"
 
 	. "github.com/onsi/gomega"
 )

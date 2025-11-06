@@ -19,16 +19,15 @@ package test
 import (
 	"time"
 
+	"github.com/cert-manager/webhook-cert-lib/internal/pki"
+	"github.com/cert-manager/webhook-cert-lib/pkg/authority"
+	"github.com/cert-manager/webhook-cert-lib/pkg/authority/api"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/envtest/komega"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
-
-	"github.com/cert-manager/webhook-cert-lib/internal/pki"
-	"github.com/cert-manager/webhook-cert-lib/pkg/authority"
-	"github.com/cert-manager/webhook-cert-lib/pkg/authority/api"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
