@@ -17,6 +17,9 @@ limitations under the License.
 package test
 
 import (
+	"github.com/cert-manager/webhook-cert-lib/pkg/authority"
+	"github.com/cert-manager/webhook-cert-lib/pkg/authority/api"
+	"github.com/cert-manager/webhook-cert-lib/pkg/authority/injectable"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -25,10 +28,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest/komega"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
-
-	"github.com/cert-manager/webhook-cert-lib/pkg/authority"
-	"github.com/cert-manager/webhook-cert-lib/pkg/authority/api"
-	"github.com/cert-manager/webhook-cert-lib/pkg/authority/injectable"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
