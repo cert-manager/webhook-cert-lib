@@ -1,4 +1,4 @@
-# Copyright 2023 The cert-manager Authors.
+# Copyright 2026 The cert-manager Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,16 +20,15 @@ test-unit: | $(NEEDS_GOTESTSUM) $(ARTIFACTS)
 		--junitfile=$(ARTIFACTS)/junit-go-e2e.xml \
 		-- \
 		-coverprofile=$(ARTIFACTS)/filtered.cov \
-		./... \
-		-- \
-		-ldflags $(go_manager_ldflags)
+		./...
 
-.PHONY: test-integration
-## Integration tests
+.PHONY: test-fake
+## Fake tests (using testing/synctest)
 ## @category Testing
-test-integration: | $(NEEDS_GINKGO) $(NEEDS_ETCD) $(NEEDS_KUBE-APISERVER) $(NEEDS_KUBECTL) $(ARTIFACTS)
-	KUBEBUILDER_ASSETS=$(CURDIR)/$(bin_dir)/tools \
-	$(GINKGO) \
-		--output-dir=$(ARTIFACTS) \
-		--junit-report=junit-go-e2e.xml \
-		./test/
+test-fake: | $(ARTIFACTS)
+	cd ./test/ && \
+	$(GOTESTSUM) \
+		--junitfile=$(CURDIR)/$(ARTIFACTS)/junit-go-e2e.xml \
+		-- \
+		-coverprofile=$(CURDIR)/$(ARTIFACTS)/filtered.cov \
+		./...

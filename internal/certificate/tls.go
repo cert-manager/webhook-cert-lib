@@ -1,5 +1,5 @@
 /*
-Copyright 2025 The cert-manager Authors.
+Copyright 2026 The cert-manager Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,22 +18,23 @@ package certificate
 
 import (
 	"crypto"
-	"crypto/tls"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"errors"
-	"sync/atomic"
 	"time"
 
 	"github.com/cert-manager/webhook-cert-lib/internal/pki"
 )
 
 func GenerateLeaf(
+	certParser *pki.CertParser,
 	leafDNSNames []string,
 	leafDuration time.Duration,
 	caCert *x509.Certificate, caPk crypto.PrivateKey,
 ) (*x509.Certificate, crypto.Signer, error) {
-	pk, err := pki.GenerateECPrivateKey(384)
+	pk, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -61,14 +62,15 @@ func GenerateLeaf(
 	}
 
 	// Sign certificate using CA
-	_, cert, err := pki.SignCertificate(template, caCert, pk.Public(), caPk)
+	cert, err := pki.SignCertificate(certParser, template, caCert, pk.Public(), caPk)
 	return cert, pk, err
 }
 
 func GenerateCA(
+	certParser *pki.CertParser,
 	caDuration time.Duration,
 ) (*x509.Certificate, crypto.Signer, error) {
-	pk, err := pki.GenerateECPrivateKey(384)
+	pk, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -94,33 +96,6 @@ func GenerateCA(
 	}
 
 	// self sign the root CA
-	_, cert, err := pki.SignCertificate(template, template, pk.Public(), pk)
+	cert, err := pki.SignCertificate(certParser, template, template, pk.Public(), pk)
 	return cert, pk, err
-}
-
-var (
-	ErrCertNotAvailable = errors.New("no tls.Certificate available")
-)
-
-type Holder struct {
-	certP atomic.Pointer[tls.Certificate]
-}
-
-func (h *Holder) GetCertificate(_ *tls.ClientHelloInfo) (*tls.Certificate, error) {
-	cert := h.certP.Load()
-	if cert == nil {
-		return nil, ErrCertNotAvailable
-	}
-	return cert, nil
-}
-
-func (h *Holder) SetCertificate(cert *tls.Certificate) {
-	h.certP.Store(cert)
-}
-
-// RenewAfter returns the duration until the certificate should be renewed.
-func RenewAfter(cert *x509.Certificate) time.Duration {
-	lifetime := cert.NotAfter.Sub(cert.NotBefore)
-	renewTime := cert.NotBefore.Add(lifetime * 2 / 3)
-	return time.Until(renewTime)
 }

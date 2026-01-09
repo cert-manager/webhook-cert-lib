@@ -1,5 +1,5 @@
 /*
-Copyright 2022 The cert-manager Authors.
+Copyright 2026 The cert-manager Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,15 +20,16 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"crypto/x509"
+	"encoding/base32"
 	"encoding/pem"
-	"fmt"
 	"slices"
+	"strings"
 	"time"
 )
 
 // CertPool is a set of certificates.
 type CertPool struct {
-	certificates map[[32]byte]*x509.Certificate
+	certificates []*x509.Certificate
 
 	filterExpired bool
 }
@@ -42,12 +43,9 @@ func WithFilteredExpiredCerts(filterExpired bool) Option {
 }
 
 // NewCertPool returns a new, empty CertPool.
-// It will deduplicate certificates based on their SHA256 hash.
 // Optionally, it can filter out expired certificates.
 func NewCertPool(options ...Option) *CertPool {
-	certPool := &CertPool{
-		certificates: make(map[[32]byte]*x509.Certificate),
-	}
+	certPool := &CertPool{}
 
 	for _, option := range options {
 		option(certPool)
@@ -56,135 +54,61 @@ func NewCertPool(options ...Option) *CertPool {
 	return certPool
 }
 
-func (cp *CertPool) AddCert(cert *x509.Certificate) bool {
-	if cert == nil {
-		panic("adding nil Certificate to CertPool")
-	}
-	if cp.filterExpired && time.Now().After(cert.NotAfter) {
-		return false
+func (cp *CertPool) addCert(now time.Time, cert *x509.Certificate) {
+	if cp.filterExpired && now.After(cert.NotAfter) {
+		return
 	}
 
-	hash := sha256.Sum256(cert.Raw)
-	cp.certificates[hash] = cert
-	return true
+	i, found := slices.BinarySearchFunc(cp.certificates, cert, func(a, b *x509.Certificate) int {
+		return bytes.Compare(a.Raw, b.Raw)
+	})
+	if found {
+		return
+	}
+	cp.certificates = slices.Insert(cp.certificates, i, cert)
 }
 
-// AddCertsFromPEM strictly validates a given input PEM bundle to confirm it contains
-// only valid CERTIFICATE PEM blocks. If successful, returns the validated PEM blocks with any
-// comments or extra data stripped.
-//
-// This validation is broadly similar to the standard library function
-// crypto/x509.CertPool.AppendCertsFromPEM - that is, we decode each PEM block at a time and parse
-// it as a certificate.
-//
-// The difference here is that we want to ensure that the bundle _only_ contains certificates, and
-// not just skip over things which aren't certificates.
-//
-// If, for example, someone accidentally used a combined cert + private key as an input to a trust
-// bundle, we wouldn't want to then distribute the private key in the target.
-//
-// In addition, the standard library AppendCertsFromPEM also silently skips PEM blocks with
-// non-empty Headers. We error on such PEM blocks, for the same reason as above; headers could
-// contain (accidental) private information. They're also non-standard according to
-// https://www.rfc-editor.org/rfc/rfc7468
-//
-// Additionally, if the input PEM bundle contains no non-expired certificates, an error is returned.
-// TODO: Reconsider what should happen if the input only contains expired certificates.
-func (cp *CertPool) AddCertsFromPEM(pemData []byte) error {
-	if pemData == nil {
-		return fmt.Errorf("certificate data can't be nil")
-	}
-
-	ok := false
-	for {
-		var block *pem.Block
-		block, pemData = pem.Decode(pemData)
-
-		if block == nil {
-			break
-		}
-
-		if block.Type != "CERTIFICATE" {
-			// only certificates are allowed in a bundle
-			return fmt.Errorf("invalid PEM block in bundle: only CERTIFICATE blocks are permitted but found '%s'", block.Type)
-		}
-
-		if len(block.Headers) != 0 {
-			return fmt.Errorf("invalid PEM block in bundle; blocks are not permitted to have PEM headers")
-		}
-
-		certificate, err := x509.ParseCertificate(block.Bytes)
-		if err != nil {
-			// the presence of an invalid cert (including things which aren't certs)
-			// should cause the bundle to be rejected
-			return fmt.Errorf("invalid PEM block in bundle; invalid PEM certificate: %w", err)
-		}
-
-		if certificate == nil {
-			return fmt.Errorf("failed appending a certificate: certificate is nil")
-		}
-
-		if cp.AddCert(certificate) {
-			ok = true // at least one non-expired certificate was found in the input
-		}
-	}
-
-	if !ok {
-		return fmt.Errorf("no non-expired certificates found in input bundle")
-	}
-
-	return nil
+func (cp *CertPool) AddCertificatesFromPEM(parser *CertParser, pemData []byte) error {
+	return parser.parseCertificatePEM(pemData, func(cert *x509.Certificate) bool {
+		cp.addCert(time.Now(), cert)
+		return true
+	})
 }
 
-// Get certificates quantity in the certificates pool
-func (cp *CertPool) Size() int {
-	return len(cp.certificates)
-}
-
-func (cp *CertPool) PEM() string {
-	if cp == nil || len(cp.certificates) == 0 {
-		return ""
-	}
-
-	buffer := bytes.Buffer{}
-
-	for _, cert := range cp.Certificates() {
-		if err := pem.Encode(&buffer, &pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}); err != nil {
-			return ""
-		}
-	}
-
-	return string(bytes.TrimSpace(buffer.Bytes()))
-}
-
-func (cp *CertPool) PEMSplit() []string {
+func (cp *CertPool) PEM() []byte {
 	if cp == nil || len(cp.certificates) == 0 {
 		return nil
 	}
 
-	pems := make([]string, 0, len(cp.certificates))
-	for _, cert := range cp.Certificates() {
-		pems = append(pems, string(bytes.TrimSpace(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}))))
+	buffer := bytes.Buffer{}
+
+	for _, cert := range cp.certificates {
+		if err := pem.Encode(&buffer, &pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}); err != nil {
+			return nil
+		}
 	}
 
-	return pems
+	return buffer.Bytes()
 }
 
-// Get the list of all x509 Certificates in the certificates pool
 func (cp *CertPool) Certificates() []*x509.Certificate {
-	hashes := make([][32]byte, 0, len(cp.certificates))
-	for hash := range cp.certificates {
-		hashes = append(hashes, hash)
+	return cp.certificates
+}
+
+func (cp *CertPool) HashString() string {
+	return HashString(CertificatesHash(cp.certificates...))
+}
+
+func HashString(hash [sha256.Size]byte) string {
+	return strings.TrimRight(base32.HexEncoding.EncodeToString(hash[:]), "=")
+}
+
+func CertificatesHash(certs ...*x509.Certificate) [sha256.Size]byte {
+	hash := sha256.New()
+	for _, cert := range certs {
+		_, _ = hash.Write(cert.Raw)
 	}
-
-	slices.SortFunc(hashes, func(i, j [32]byte) int {
-		return bytes.Compare(i[:], j[:])
-	})
-
-	orderedCertificates := make([]*x509.Certificate, 0, len(cp.certificates))
-	for _, hash := range hashes {
-		orderedCertificates = append(orderedCertificates, cp.certificates[hash])
-	}
-
-	return orderedCertificates
+	var certsHash [sha256.Size]byte
+	_ = hash.Sum(certsHash[:0])
+	return certsHash
 }

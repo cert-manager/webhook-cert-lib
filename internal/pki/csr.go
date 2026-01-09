@@ -1,5 +1,5 @@
 /*
-Copyright 2020 The cert-manager Authors.
+Copyright 2026 The cert-manager Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -35,10 +35,10 @@ import (
 // key of the signer.
 // It returns a PEM encoded copy of the Certificate as well as a *x509.Certificate
 // which can be used for reading the encoded values.
-func SignCertificate(template *x509.Certificate, issuerCert *x509.Certificate, publicKey crypto.PublicKey, signerKey any) ([]byte, *x509.Certificate, error) {
+func SignCertificate(certParser *CertParser, template *x509.Certificate, issuerCert *x509.Certificate, publicKey crypto.PublicKey, signerKey any) (*x509.Certificate, error) {
 	typedSigner, ok := signerKey.(crypto.Signer)
 	if !ok {
-		return nil, nil, fmt.Errorf("didn't get an expected Signer in call to SignCertificate")
+		return nil, fmt.Errorf("didn't get an expected Signer in call to SignCertificate")
 	}
 
 	var pubKeyAlgo x509.PublicKeyAlgorithm
@@ -64,42 +64,35 @@ func SignCertificate(template *x509.Certificate, issuerCert *x509.Certificate, p
 		sigAlgoArg = nil // ignored by signatureAlgorithmFromPublicKey
 
 	default:
-		return nil, nil, fmt.Errorf("unknown public key type on signing certificate: %T", issuerCert.PublicKey)
+		return nil, fmt.Errorf("unknown public key type on signing certificate: %T", issuerCert.PublicKey)
 	}
 
 	var err error
 	template.SignatureAlgorithm, err = signatureAlgorithmFromPublicKey(pubKeyAlgo, sigAlgoArg)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	derBytes, err := x509.CreateCertificate(rand.Reader, template, issuerCert, publicKey, signerKey)
 	if err != nil {
-		return nil, nil, fmt.Errorf("error creating x509 certificate: %s", err.Error())
+		return nil, fmt.Errorf("error creating x509 certificate: %s", err.Error())
 	}
 
-	cert, err := x509.ParseCertificate(derBytes)
+	cert, err := ParseCertificateFromDER(certParser, derBytes)
 	if err != nil {
-		return nil, nil, fmt.Errorf("error decoding DER certificate bytes: %s", err.Error())
+		return nil, fmt.Errorf("error decoding DER certificate bytes: %s", err.Error())
 	}
 
-	pemBytes := bytes.NewBuffer([]byte{})
-	err = pem.Encode(pemBytes, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
-	if err != nil {
-		return nil, nil, fmt.Errorf("error encoding certificate PEM: %s", err.Error())
-	}
-
-	return pemBytes.Bytes(), cert, err
+	return cert, err
 }
 
-// EncodeX509 will encode a single *x509.Certificate into PEM format.
-func EncodeX509(cert *x509.Certificate) ([]byte, error) {
+// EncodeCertificateAsPEM will encode a single *x509.Certificate into PEM format.
+func EncodeCertificateAsPEM(cert *x509.Certificate) ([]byte, error) {
 	caPem := bytes.NewBuffer([]byte{})
 	err := pem.Encode(caPem, &pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})
 	if err != nil {
 		return nil, err
 	}
-
 	return caPem.Bytes(), nil
 }
 

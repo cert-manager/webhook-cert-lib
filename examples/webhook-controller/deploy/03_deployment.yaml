@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: example-webhook-controller
+  namespace: smoke-namespace
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: example-webhook
+  template:
+    metadata:
+      labels:
+        app: example-webhook
+    spec:
+      serviceAccountName: example-webhook-sa
+      containers:
+        - name: webhook-controller
+          image: controller:latest
+          args:
+            - --service-name=example-webhook
+            - --validating-webhook-configuration-name=example-webhook-validating
+            - --addr=:8443
+          ports:
+            - name: webhook
+              containerPort: 8443
+          livenessProbe:
+            httpGet:
+              port: webhook
+              path: /healthz
+              scheme: HTTPS
+            initialDelaySeconds: 3
+            periodSeconds: 7
+          readinessProbe:
+            httpGet:
+              port: webhook
+              path: /healthz
+              scheme: HTTPS
+            initialDelaySeconds: 3
+            periodSeconds: 7

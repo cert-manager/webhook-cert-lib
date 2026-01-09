@@ -1,5 +1,5 @@
 /*
-Copyright 2020 The cert-manager Authors.
+Copyright 2026 The cert-manager Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -22,13 +22,14 @@ import (
 	"crypto/x509"
 )
 
+// ToTLSCertificate converts a x509.Certificate and a crypto.Signer to a tls.Certificate.
 func ToTLSCertificate(cert *x509.Certificate, pk crypto.Signer) (tls.Certificate, error) {
 	pkData, err := EncodePrivateKey(pk)
 	if err != nil {
 		return tls.Certificate{}, err
 	}
 
-	certData, err := EncodeX509(cert)
+	certData, err := EncodeCertificateAsPEM(cert)
 	if err != nil {
 		return tls.Certificate{}, err
 	}

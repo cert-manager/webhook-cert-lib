@@ -1,0 +1,6 @@
+resources:
+  - 01_namespace.yaml
+  - 02_rbac.yaml
+  - 03_deployment.yaml
+  - 04_service.yaml
+  - 05_validatingwebhook.yaml
