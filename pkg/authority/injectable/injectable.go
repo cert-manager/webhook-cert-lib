@@ -1,5 +1,5 @@
 /*
-Copyright 2025 The cert-manager Authors.
+Copyright 2026 The cert-manager Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,25 +17,38 @@ limitations under the License.
 package injectable
 
 import (
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
+	"context"
+	"iter"
+	"time"
 
-	"github.com/cert-manager/webhook-cert-lib/pkg/runtime"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/informers/internalinterfaces"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/cache"
 )
 
-type Injectable interface {
+type InjectableKind interface {
 	GroupVersionKind() schema.GroupVersionKind
-	InjectCA(obj *unstructured.Unstructured, caBundle []byte) (runtime.ApplyConfiguration, error)
+	ExampleObject() runtime.Object
+	NewInformerAndListPatcher(
+		client kubernetes.Interface,
+		resyncPeriod time.Duration,
+		indexers cache.Indexers,
+		tweakListOptions internalinterfaces.TweakListOptionsFunc,
+	) (cache.SharedIndexInformer, ListPatcher)
 }
 
-func NewUnstructured(injectable Injectable) *unstructured.Unstructured {
-	obj := &unstructured.Unstructured{}
-	obj.SetGroupVersionKind(injectable.GroupVersionKind())
-	return obj
-}
+type IsUpToDate bool
 
-func NewUnstructuredList(injectable Injectable) *unstructured.UnstructuredList {
-	obj := &unstructured.UnstructuredList{}
-	obj.SetGroupVersionKind(injectable.GroupVersionKind())
-	return obj
+const (
+	UpToDate    IsUpToDate = true
+	NeedsUpdate IsUpToDate = false
+)
+
+type ListPatcher interface {
+	ListObjects(caBundle []byte) (iter.Seq2[types.NamespacedName, IsUpToDate], error)
+	PatchObject(ctx context.Context, key types.NamespacedName, caBundle []byte, applyOptions metav1.ApplyOptions) (bool, error)
 }
