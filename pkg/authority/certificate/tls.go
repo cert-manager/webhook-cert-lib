@@ -18,6 +18,9 @@ package certificate
 
 import (
 	"crypto"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
@@ -33,7 +36,7 @@ func GenerateLeaf(
 	leafDuration time.Duration,
 	caCert *x509.Certificate, caPk crypto.PrivateKey,
 ) (*x509.Certificate, crypto.Signer, error) {
-	pk, err := pki.GenerateECPrivateKey(384)
+	pk, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -68,7 +71,7 @@ func GenerateLeaf(
 func GenerateCA(
 	caDuration time.Duration,
 ) (*x509.Certificate, crypto.Signer, error) {
-	pk, err := pki.GenerateECPrivateKey(384)
+	pk, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
 	if err != nil {
 		return nil, nil, err
 	}

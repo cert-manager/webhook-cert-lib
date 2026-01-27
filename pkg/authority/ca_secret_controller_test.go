@@ -17,6 +17,8 @@ limitations under the License.
 package authority
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
@@ -35,7 +37,7 @@ var serialNumberLimit = new(big.Int).Lsh(big.NewInt(1), 128)
 func Test__caRequiresRegeneration(t *testing.T) {
 	generateSecretData := func(mod func(*x509.Certificate)) map[string][]byte {
 		// Generate a certificate and private key pair
-		pk, err := pki.GenerateECPrivateKey(384)
+		pk, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
 		assert.NoError(t, err)
 		pkBytes, err := pki.EncodePrivateKey(pk)
 		assert.NoError(t, err)
