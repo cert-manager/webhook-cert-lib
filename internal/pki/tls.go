@@ -22,6 +22,7 @@ import (
 	"crypto/x509"
 )
 
+// ToTLSCertificate converts a x509.Certificate and a crypto.Signer to a tls.Certificate.
 func ToTLSCertificate(cert *x509.Certificate, pk crypto.Signer) (tls.Certificate, error) {
 	pkData, err := EncodePrivateKey(pk)
 	if err != nil {
