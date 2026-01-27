@@ -18,12 +18,32 @@ package certificate
 
 import (
 	"crypto/x509"
+	"math/rand/v2"
 	"time"
 )
 
-// RenewAfter returns the duration until the certificate should be renewed.
-func RenewAfter(cert *x509.Certificate) time.Duration {
+type TriggerWindow struct {
+	Start time.Time
+	End   time.Time
+}
+
+func (tw TriggerWindow) duration() time.Duration {
+	return tw.End.Sub(tw.Start)
+}
+
+// Random returns a random time within the TriggerWindow.
+// This value lies within [Start, End).
+func (tw TriggerWindow) Random() time.Time {
+	randomRenewalPoint := time.Duration(float64(tw.duration()) * rand.Float64()) // #nosec G404
+	return tw.Start.Add(randomRenewalPoint)
+}
+
+// RenewTriggerWindow returns the period during which a certificate renewal should
+// be scheduled (between 6/10 and 7/10 of its lifetime).
+func RenewTriggerWindow(cert *x509.Certificate) TriggerWindow {
 	lifetime := cert.NotAfter.Sub(cert.NotBefore)
-	renewTime := cert.NotBefore.Add(lifetime * 2 / 3)
-	return time.Until(renewTime)
+	return TriggerWindow{
+		Start: cert.NotBefore.Add(lifetime * 6 / 10),
+		End:   cert.NotBefore.Add(lifetime * 7 / 10),
+	}
 }

@@ -21,6 +21,7 @@ import (
 	"crypto"
 	"crypto/tls"
 	"crypto/x509"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -74,7 +75,10 @@ func (r *CASecretReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	caCert, err := r.reconcileSecret(ctx, secret)
-	return ctrl.Result{RequeueAfter: certificate.RenewAfter(caCert)}, err
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+	return ctrl.Result{RequeueAfter: time.Until(certificate.RenewTriggerWindow(caCert).Random())}, nil
 }
 
 func (r *CASecretReconciler) reconcileSecret(ctx context.Context, secret *corev1.Secret) (caCert *x509.Certificate, err error) {
@@ -168,7 +172,7 @@ func caRequiresRegeneration(s *corev1.Secret) (bool, string) {
 	if !x509Cert.IsCA {
 		return true, "Stored certificate is not marked as a CA."
 	}
-	if certificate.RenewAfter(x509Cert) < 0 {
+	if !time.Now().Before(certificate.RenewTriggerWindow(x509Cert).Start) {
 		return true, "CA certificate is nearing expiry."
 	}
 

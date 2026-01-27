@@ -20,6 +20,7 @@ import (
 	"context"
 	"crypto"
 	"crypto/x509"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/utils/ptr"
@@ -64,7 +65,7 @@ func (r *LeafCertReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 	r.CertificateHolder.SetCertificate(&tlsCert)
 
-	return ctrl.Result{RequeueAfter: certificate.RenewAfter(cert)}, nil
+	return ctrl.Result{RequeueAfter: time.Until(certificate.RenewTriggerWindow(cert).Random())}, nil
 }
 
 func (r *LeafCertReconciler) generateCertificate(caSecret *corev1.Secret) (cert *x509.Certificate, pk crypto.Signer, err error) {
