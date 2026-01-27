@@ -65,7 +65,7 @@ func encodePKCS8PrivateKey(pk any) ([]byte, error) {
 func encodeECPrivateKey(pk *ecdsa.PrivateKey) ([]byte, error) {
 	keyBytes, err := x509.MarshalECPrivateKey(pk)
 	if err != nil {
-		return nil, fmt.Errorf("error encoding private key: %s", err.Error())
+		return nil, fmt.Errorf("error encoding private key: %w", err)
 	}
 	block := &pem.Block{Type: "EC PRIVATE KEY", Bytes: keyBytes}
 
