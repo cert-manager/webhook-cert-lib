@@ -28,8 +28,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/cert-manager/webhook-cert-lib/internal/certificate"
 	"github.com/cert-manager/webhook-cert-lib/pkg/authority/api"
-	"github.com/cert-manager/webhook-cert-lib/pkg/authority/certificate"
 	"github.com/cert-manager/webhook-cert-lib/pkg/authority/injectable"
 )
 

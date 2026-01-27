@@ -21,11 +21,8 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
-	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"errors"
-	"sync/atomic"
 	"time"
 
 	"github.com/cert-manager/webhook-cert-lib/internal/pki"
@@ -99,31 +96,4 @@ func GenerateCA(
 	// self sign the root CA
 	_, cert, err := pki.SignCertificate(template, template, pk.Public(), pk)
 	return cert, pk, err
-}
-
-var (
-	ErrCertNotAvailable = errors.New("no tls.Certificate available")
-)
-
-type Holder struct {
-	certP atomic.Pointer[tls.Certificate]
-}
-
-func (h *Holder) GetCertificate(_ *tls.ClientHelloInfo) (*tls.Certificate, error) {
-	cert := h.certP.Load()
-	if cert == nil {
-		return nil, ErrCertNotAvailable
-	}
-	return cert, nil
-}
-
-func (h *Holder) SetCertificate(cert *tls.Certificate) {
-	h.certP.Store(cert)
-}
-
-// RenewAfter returns the duration until the certificate should be renewed.
-func RenewAfter(cert *x509.Certificate) time.Duration {
-	lifetime := cert.NotAfter.Sub(cert.NotBefore)
-	renewTime := cert.NotBefore.Add(lifetime * 2 / 3)
-	return time.Until(renewTime)
 }
