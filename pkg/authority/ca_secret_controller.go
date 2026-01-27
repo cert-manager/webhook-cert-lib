@@ -33,9 +33,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	"github.com/cert-manager/webhook-cert-lib/internal/certificate"
 	"github.com/cert-manager/webhook-cert-lib/internal/pki"
 	"github.com/cert-manager/webhook-cert-lib/pkg/authority/api"
-	"github.com/cert-manager/webhook-cert-lib/pkg/authority/certificate"
 	"github.com/cert-manager/webhook-cert-lib/pkg/authority/internal/ssa"
 )
 

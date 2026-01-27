@@ -20,10 +20,10 @@ import (
 	"crypto/tls"
 	"time"
 
+	"github.com/cert-manager/webhook-cert-lib/internal/certificate"
 	"github.com/cert-manager/webhook-cert-lib/internal/pki"
 	"github.com/cert-manager/webhook-cert-lib/pkg/authority"
 	"github.com/cert-manager/webhook-cert-lib/pkg/authority/api"
-	"github.com/cert-manager/webhook-cert-lib/pkg/authority/certificate"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"

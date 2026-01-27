@@ -27,8 +27,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 
+	"github.com/cert-manager/webhook-cert-lib/internal/certificate"
 	"github.com/cert-manager/webhook-cert-lib/internal/pki"
-	"github.com/cert-manager/webhook-cert-lib/pkg/authority/certificate"
 )
 
 // LeafCertReconciler reconciles the leaf/serving certificate
