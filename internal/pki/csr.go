@@ -82,7 +82,7 @@ func SignCertificate(template *x509.Certificate, issuerCert *x509.Certificate, p
 		return nil, fmt.Errorf("error decoding DER certificate bytes: %w", err)
 	}
 
-	return cert, err
+	return cert, nil
 }
 
 // EncodeX509 will encode a single *x509.Certificate into PEM format.
