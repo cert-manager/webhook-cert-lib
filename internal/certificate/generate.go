@@ -61,7 +61,7 @@ func GenerateLeaf(
 	}
 
 	// Sign certificate using CA
-	_, cert, err := pki.SignCertificate(template, caCert, pk.Public(), caPk)
+	cert, err := pki.SignCertificate(template, caCert, pk.Public(), caPk)
 	return cert, pk, err
 }
 
@@ -94,6 +94,6 @@ func GenerateCA(
 	}
 
 	// self sign the root CA
-	_, cert, err := pki.SignCertificate(template, template, pk.Public(), pk)
+	cert, err := pki.SignCertificate(template, template, pk.Public(), pk)
 	return cert, pk, err
 }

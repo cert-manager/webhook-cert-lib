@@ -33,12 +33,11 @@ import (
 // *x509.Certificate crt and an issuer.
 // publicKey is the public key of the signee, and signerKey is the private
 // key of the signer.
-// It returns a PEM encoded copy of the Certificate as well as a *x509.Certificate
-// which can be used for reading the encoded values.
-func SignCertificate(template *x509.Certificate, issuerCert *x509.Certificate, publicKey crypto.PublicKey, signerKey any) ([]byte, *x509.Certificate, error) {
+// It returns a parsed *x509.Certificate on success.
+func SignCertificate(template *x509.Certificate, issuerCert *x509.Certificate, publicKey crypto.PublicKey, signerKey any) (*x509.Certificate, error) {
 	typedSigner, ok := signerKey.(crypto.Signer)
 	if !ok {
-		return nil, nil, fmt.Errorf("didn't get an expected Signer in call to SignCertificate")
+		return nil, fmt.Errorf("didn't get an expected Signer in call to SignCertificate")
 	}
 
 	var pubKeyAlgo x509.PublicKeyAlgorithm
@@ -64,32 +63,26 @@ func SignCertificate(template *x509.Certificate, issuerCert *x509.Certificate, p
 		sigAlgoArg = nil // ignored by signatureAlgorithmFromPublicKey
 
 	default:
-		return nil, nil, fmt.Errorf("unknown public key type on signing certificate: %T", issuerCert.PublicKey)
+		return nil, fmt.Errorf("unknown public key type on signing certificate: %T", issuerCert.PublicKey)
 	}
 
 	var err error
 	template.SignatureAlgorithm, err = signatureAlgorithmFromPublicKey(pubKeyAlgo, sigAlgoArg)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	derBytes, err := x509.CreateCertificate(rand.Reader, template, issuerCert, publicKey, signerKey)
 	if err != nil {
-		return nil, nil, fmt.Errorf("error creating x509 certificate: %s", err.Error())
+		return nil, fmt.Errorf("error creating x509 certificate: %w", err)
 	}
 
 	cert, err := x509.ParseCertificate(derBytes)
 	if err != nil {
-		return nil, nil, fmt.Errorf("error decoding DER certificate bytes: %s", err.Error())
+		return nil, fmt.Errorf("error decoding DER certificate bytes: %w", err)
 	}
 
-	pemBytes := bytes.NewBuffer([]byte{})
-	err = pem.Encode(pemBytes, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
-	if err != nil {
-		return nil, nil, fmt.Errorf("error encoding certificate PEM: %s", err.Error())
-	}
-
-	return pemBytes.Bytes(), cert, err
+	return cert, err
 }
 
 // EncodeX509 will encode a single *x509.Certificate into PEM format.

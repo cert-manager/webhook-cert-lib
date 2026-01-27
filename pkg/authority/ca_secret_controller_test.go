@@ -59,7 +59,7 @@ func Test__caRequiresRegeneration(t *testing.T) {
 		if mod != nil {
 			mod(cert)
 		}
-		_, cert, err = pki.SignCertificate(cert, cert, pk.Public(), pk)
+		cert, err = pki.SignCertificate(cert, cert, pk.Public(), pk)
 		assert.NoError(t, err)
 		certBytes, err := pki.EncodeX509(cert)
 		assert.NoError(t, err)
