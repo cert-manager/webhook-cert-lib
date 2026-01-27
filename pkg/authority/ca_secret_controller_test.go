@@ -61,7 +61,7 @@ func Test__caRequiresRegeneration(t *testing.T) {
 		}
 		cert, err = pki.SignCertificate(cert, cert, pk.Public(), pk)
 		assert.NoError(t, err)
-		certBytes, err := pki.EncodeX509(cert)
+		certBytes, err := pki.EncodeCertificateAsPEM(cert)
 		assert.NoError(t, err)
 
 		return map[string][]byte{

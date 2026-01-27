@@ -85,8 +85,8 @@ func SignCertificate(template *x509.Certificate, issuerCert *x509.Certificate, p
 	return cert, nil
 }
 
-// EncodeX509 will encode a single *x509.Certificate into PEM format.
-func EncodeX509(cert *x509.Certificate) ([]byte, error) {
+// EncodeCertificateAsPEM will encode a single *x509.Certificate into PEM format.
+func EncodeCertificateAsPEM(cert *x509.Certificate) ([]byte, error) {
 	caPem := bytes.NewBuffer([]byte{})
 	err := pem.Encode(caPem, &pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})
 	if err != nil {

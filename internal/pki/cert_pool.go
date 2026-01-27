@@ -56,7 +56,7 @@ func NewCertPool(options ...Option) *CertPool {
 	return certPool
 }
 
-func (cp *CertPool) AddCert(cert *x509.Certificate) bool {
+func (cp *CertPool) AddCertificate(cert *x509.Certificate) bool {
 	if cert == nil {
 		panic("adding nil Certificate to CertPool")
 	}
@@ -69,7 +69,7 @@ func (cp *CertPool) AddCert(cert *x509.Certificate) bool {
 	return true
 }
 
-// AddCertsFromPEM strictly validates a given input PEM bundle to confirm it contains
+// AddCertificatesFromPEM strictly validates a given input PEM bundle to confirm it contains
 // only valid CERTIFICATE PEM blocks. If successful, returns the validated PEM blocks with any
 // comments or extra data stripped.
 //
@@ -90,7 +90,7 @@ func (cp *CertPool) AddCert(cert *x509.Certificate) bool {
 //
 // Additionally, if the input PEM bundle contains no non-expired certificates, an error is returned.
 // TODO: Reconsider what should happen if the input only contains expired certificates.
-func (cp *CertPool) AddCertsFromPEM(pemData []byte) error {
+func (cp *CertPool) AddCertificatesFromPEM(pemData []byte) error {
 	if pemData == nil {
 		return fmt.Errorf("certificate data can't be nil")
 	}
@@ -124,7 +124,7 @@ func (cp *CertPool) AddCertsFromPEM(pemData []byte) error {
 			return fmt.Errorf("failed appending a certificate: certificate is nil")
 		}
 
-		if cp.AddCert(certificate) {
+		if cp.AddCertificate(certificate) {
 			ok = true // at least one non-expired certificate was found in the input
 		}
 	}

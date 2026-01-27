@@ -63,7 +63,7 @@ var _ = Describe("Leaf Certificate Controller", Ordered, func() {
 
 		caCert, caPK, err := certificate.GenerateCA(opts.CAOptions.Duration)
 		Expect(err).ToNot(HaveOccurred())
-		caCertBytes, err := pki.EncodeX509(caCert)
+		caCertBytes, err := pki.EncodeCertificateAsPEM(caCert)
 		Expect(err).ToNot(HaveOccurred())
 		pkBytes, err := pki.EncodePrivateKey(caPK)
 		Expect(err).ToNot(HaveOccurred())
