@@ -65,26 +65,22 @@ func encodePKCS8PrivateKey(pk any) ([]byte, error) {
 func encodeECPrivateKey(pk *ecdsa.PrivateKey) ([]byte, error) {
 	keyBytes, err := x509.MarshalECPrivateKey(pk)
 	if err != nil {
-		return nil, fmt.Errorf("error encoding private key: %s", err.Error())
+		return nil, fmt.Errorf("error encoding private key: %w", err)
 	}
 	block := &pem.Block{Type: "EC PRIVATE KEY", Bytes: keyBytes}
 
 	return pem.EncodeToMemory(block), nil
 }
 
-// PublicKeysEqual compares two given public keys for equality.
-// The definition of "equality" depends on the type of the public keys.
-// Returns true if the keys are the same, false if they differ or an error if
-// the key type of `a` cannot be determined.
-func PublicKeysEqual(a, b crypto.PublicKey) (bool, error) {
-	switch pub := a.(type) {
-	case *rsa.PublicKey:
-		return pub.Equal(b), nil
-	case *ecdsa.PublicKey:
-		return pub.Equal(b), nil
-	case ed25519.PublicKey:
-		return pub.Equal(b), nil
-	default:
-		return false, fmt.Errorf("unrecognised public key type: %T", a)
+type publicKeyEqual interface {
+	Equal(crypto.PublicKey) bool
+}
+
+// PublicKeysEqual compares two public keys for equivalence across supported types.
+func PublicKeysEqual(a, b any) (bool, error) {
+	if ak, ok := a.(publicKeyEqual); ok {
+		return ak.Equal(b), nil
 	}
+
+	return false, fmt.Errorf("unsupported public key type %T", a)
 }
