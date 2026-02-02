@@ -124,8 +124,9 @@ func Test__caRequiresRegeneration(t *testing.T) {
 			secret: &corev1.Secret{
 				Data: generateSecretData(
 					func(cert *x509.Certificate) {
-						cert.NotBefore = time.Now().Add(-2*time.Hour - 1*time.Minute)
-						cert.NotAfter = cert.NotBefore.Add(3 * time.Hour)
+						lifetime := 10 * time.Hour
+						cert.NotBefore = time.Now().Add(-6*lifetime/10 - 1*time.Minute)
+						cert.NotAfter = cert.NotBefore.Add(lifetime)
 					},
 				),
 			},
@@ -137,8 +138,9 @@ func Test__caRequiresRegeneration(t *testing.T) {
 			secret: &corev1.Secret{
 				Data: generateSecretData(
 					func(cert *x509.Certificate) {
-						cert.NotBefore = time.Now().Add(-2*time.Hour + 1*time.Minute)
-						cert.NotAfter = cert.NotBefore.Add(3 * time.Hour)
+						lifetime := 10 * time.Hour
+						cert.NotBefore = time.Now().Add(-6*lifetime/10 + 1*time.Minute)
+						cert.NotAfter = cert.NotBefore.Add(lifetime)
 					},
 				),
 			},
