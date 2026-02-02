@@ -23,8 +23,8 @@ import (
 	"fmt"
 )
 
-// DecodeCertificateFromPEM will decode a PEM encoded x509 Certificate.
-func DecodeCertificateFromPEM(certBytes []byte) (*x509.Certificate, error) {
+// DecodeAllCertificatesFromPEM will decode a PEM encoded x509 Certificate.
+func DecodeAllCertificatesFromPEM(certBytes []byte) (*x509.Certificate, error) {
 	certs, err := DecodeCertificatesFromPEM(certBytes)
 	if err != nil {
 		return nil, err
