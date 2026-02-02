@@ -29,7 +29,7 @@ func ToTLSCertificate(cert *x509.Certificate, pk crypto.Signer) (tls.Certificate
 		return tls.Certificate{}, err
 	}
 
-	certData, err := EncodeX509(cert)
+	certData, err := EncodeCertificateAsPEM(cert)
 	if err != nil {
 		return tls.Certificate{}, err
 	}

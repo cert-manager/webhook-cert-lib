@@ -23,9 +23,9 @@ import (
 	"fmt"
 )
 
-// DecodeX509CertificateBytes will decode a PEM encoded x509 Certificate.
-func DecodeX509CertificateBytes(certBytes []byte) (*x509.Certificate, error) {
-	certs, err := DecodeX509CertificateSetBytes(certBytes)
+// DecodeAllCertificatesFromPEM will decode a PEM encoded x509 Certificate.
+func DecodeAllCertificatesFromPEM(certBytes []byte) (*x509.Certificate, error) {
+	certs, err := DecodeCertificatesFromPEM(certBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -33,8 +33,8 @@ func DecodeX509CertificateBytes(certBytes []byte) (*x509.Certificate, error) {
 	return certs[0], nil
 }
 
-// DecodeX509CertificateSetBytes will decode a concatenated set of PEM encoded x509 Certificates.
-func DecodeX509CertificateSetBytes(certBytes []byte) ([]*x509.Certificate, error) {
+// DecodeCertificatesFromPEM will decode a concatenated set of PEM encoded x509 Certificates.
+func DecodeCertificatesFromPEM(certBytes []byte) ([]*x509.Certificate, error) {
 	certs := []*x509.Certificate{}
 
 	var block *pem.Block

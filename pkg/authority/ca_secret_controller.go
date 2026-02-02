@@ -92,7 +92,7 @@ func (r *CASecretReconciler) reconcileSecret(ctx context.Context, secret *corev1
 			return caCert, err
 		}
 	} else {
-		caCert, err = pki.DecodeX509CertificateBytes(secret.Data[corev1.TLSCertKey])
+		caCert, err = pki.DecodeAllCertificatesFromPEM(secret.Data[corev1.TLSCertKey])
 		if err != nil {
 			return caCert, err
 		}
@@ -102,7 +102,7 @@ func (r *CASecretReconciler) reconcileSecret(ctx context.Context, secret *corev1
 		}
 	}
 
-	certBytes, err := pki.EncodeX509(caCert)
+	certBytes, err := pki.EncodeCertificateAsPEM(caCert)
 	if err != nil {
 		return caCert, err
 	}
@@ -136,11 +136,11 @@ func (r *CASecretReconciler) reconcileSecret(ctx context.Context, secret *corev1
 func addCertToCABundle(ctx context.Context, caBundleBytes []byte, caCert *x509.Certificate) []byte {
 	certPool := pki.NewCertPool(pki.WithFilteredExpiredCerts(true))
 
-	if err := certPool.AddCertsFromPEM(caBundleBytes); err != nil {
+	if err := certPool.AddCertificatesFromPEM(caBundleBytes); err != nil {
 		log.FromContext(ctx).Error(err, "failed to re-use existing CAs in new set of CAs")
 	}
-	// TODO: handle AddCert returning false? I expect this will never happen.
-	certPool.AddCert(caCert)
+	// TODO: handle AddCertificate returning false? I expect this will never happen.
+	certPool.AddCertificate(caCert)
 
 	return []byte(certPool.PEM())
 }
