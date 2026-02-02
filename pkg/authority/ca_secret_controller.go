@@ -92,7 +92,7 @@ func (r *CASecretReconciler) reconcileSecret(ctx context.Context, secret *corev1
 			return caCert, err
 		}
 	} else {
-		caCert, err = pki.DecodeAllCertificatesFromPEM(secret.Data[corev1.TLSCertKey])
+		caCert, err = pki.DecodeCertificateFromPEM(secret.Data[corev1.TLSCertKey])
 		if err != nil {
 			return caCert, err
 		}
