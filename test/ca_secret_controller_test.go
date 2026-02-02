@@ -112,7 +112,7 @@ var _ = Describe("CA Secret Controller", Ordered, func() {
 	It("should retain old CA if CA is rotated", func() {
 		assertCASecret(caSecret)
 
-		caBundleCerts, err := pki.DecodeCertificatesFromPEM(caSecret.Data[api.TLSCABundleKey])
+		caBundleCerts, err := pki.DecodeAllCertificatesFromPEM(caSecret.Data[api.TLSCABundleKey])
 		Expect(err).ToNot(HaveOccurred())
 		Expect(caBundleCerts).To(HaveLen(1))
 
@@ -136,7 +136,7 @@ var _ = Describe("CA Secret Controller", Ordered, func() {
 			HaveField("Data", HaveKeyWithValue(corev1.TLSCertKey, Equal(certBytes))),
 		)
 
-		caBundleCerts, err = pki.DecodeCertificatesFromPEM(caSecret.Data[api.TLSCABundleKey])
+		caBundleCerts, err = pki.DecodeAllCertificatesFromPEM(caSecret.Data[api.TLSCABundleKey])
 		Expect(err).ToNot(HaveOccurred())
 		Expect(caBundleCerts).To(HaveLen(2))
 	})

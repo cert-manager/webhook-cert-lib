@@ -69,7 +69,7 @@ func (r *LeafCertReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 }
 
 func (r *LeafCertReconciler) generateCertificate(caSecret *corev1.Secret) (cert *x509.Certificate, pk crypto.Signer, err error) {
-	caCert, err := pki.DecodeAllCertificatesFromPEM(caSecret.Data[corev1.TLSCertKey])
+	caCert, err := pki.DecodeCertificateFromPEM(caSecret.Data[corev1.TLSCertKey])
 	if err != nil {
 		return cert, pk, err
 	}
