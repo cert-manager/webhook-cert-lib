@@ -142,7 +142,7 @@ func addCertToCABundle(ctx context.Context, caBundleBytes []byte, caCert *x509.C
 	// TODO: handle AddCertificate returning false? I expect this will never happen.
 	certPool.AddCertificate(caCert)
 
-	return []byte(certPool.PEM())
+	return certPool.PEM()
 }
 
 // caRequiresRegeneration will check data in a Secret resource and return true
