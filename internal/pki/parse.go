@@ -25,40 +25,20 @@ import (
 
 // DecodeCertificateFromPEM will decode a PEM encoded x509 Certificate.
 func DecodeCertificateFromPEM(certBytes []byte) (*x509.Certificate, error) {
-	certs, err := DecodeAllCertificatesFromPEM(certBytes)
-	if err != nil {
-		return nil, err
-	}
-
-	return certs[0], nil
+	var returnedCert *x509.Certificate
+	return returnedCert, parseCertificatePEM(certBytes, func(cert *x509.Certificate) (bool, error) {
+		returnedCert = cert
+		return false, nil // stop after first cert, will error if there are more
+	})
 }
 
-// DecodeAllCertificatesFromPEM will decode a concatenated set of PEM encoded x509 Certificates.
+// DecodeAllCertificatesFromPEM will decode a concatenated list of PEM encoded x509 Certificates.
 func DecodeAllCertificatesFromPEM(certBytes []byte) ([]*x509.Certificate, error) {
-	certs := []*x509.Certificate{}
-
-	var block *pem.Block
-
-	for {
-		// decode the tls certificate pem
-		block, certBytes = pem.Decode(certBytes)
-		if block == nil {
-			break
-		}
-
-		// parse the tls certificate
-		cert, err := x509.ParseCertificate(block.Bytes)
-		if err != nil {
-			return nil, fmt.Errorf("error parsing TLS certificate: %w", err)
-		}
-		certs = append(certs, cert)
-	}
-
-	if len(certs) == 0 {
-		return nil, fmt.Errorf("error decoding certificate PEM block")
-	}
-
-	return certs, nil
+	var returnedCerts []*x509.Certificate
+	return returnedCerts, parseCertificatePEM(certBytes, func(cert *x509.Certificate) (bool, error) {
+		returnedCerts = append(returnedCerts, cert)
+		return true, nil
+	})
 }
 
 // DecodePrivateKeyBytes will decode a PEM encoded private key into a crypto.Signer.
