@@ -140,7 +140,7 @@ func addCertToCABundle(ctx context.Context, caBundleBytes []byte, caCert *x509.C
 		log.FromContext(ctx).Error(err, "failed to re-use existing CAs in new set of CAs")
 	}
 	// TODO: handle AddCertificate returning false? I expect this will never happen.
-	certPool.AddCertificate(caCert)
+	_ = certPool.AddCertificate(caCert)
 
 	return certPool.PEM()
 }

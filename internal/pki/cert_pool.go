@@ -21,6 +21,7 @@ import (
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/pem"
+	"fmt"
 	"maps"
 	"slices"
 	"time"
@@ -55,28 +56,31 @@ func NewCertPool(options ...Option) *CertPool {
 	return certPool
 }
 
-func (cp *CertPool) addCert(now time.Time, cert *x509.Certificate) {
-	if cert == nil {
-		panic("adding nil Certificate to CertPool")
+func (cp *CertPool) addCert(now time.Time, cert *x509.Certificate) error {
+	if cert == nil || len(cert.Raw) == 0 {
+		return fmt.Errorf("adding nil Certificate to CertPool")
 	}
 	if cp.filterExpired && now.After(cert.NotAfter) {
-		return
+		return nil
 	}
 
 	hash := sha256.Sum256(cert.Raw)
 	cp.certificates[hash] = cert
+	return nil
 }
 
 func (cp *CertPool) AddCertificatesFromPEM(pemData []byte) error {
 	now := time.Now()
-	return parseCertificatePEM(pemData, func(cert *x509.Certificate) bool {
-		cp.addCert(now, cert)
-		return true
+	return parseCertificatePEM(pemData, func(cert *x509.Certificate) (bool, error) {
+		if err := cp.addCert(now, cert); err != nil {
+			return false, err
+		}
+		return true, nil
 	})
 }
 
-func (cp *CertPool) AddCertificate(cert *x509.Certificate) {
-	cp.addCert(time.Now(), cert)
+func (cp *CertPool) AddCertificate(cert *x509.Certificate) error {
+	return cp.addCert(time.Now(), cert)
 }
 
 func (cp *CertPool) PEM() []byte {

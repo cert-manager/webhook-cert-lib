@@ -26,18 +26,18 @@ import (
 // DecodeCertificateFromPEM will decode a PEM encoded x509 Certificate.
 func DecodeCertificateFromPEM(certBytes []byte) (*x509.Certificate, error) {
 	var returnedCert *x509.Certificate
-	return returnedCert, parseCertificatePEM(certBytes, func(cert *x509.Certificate) bool {
+	return returnedCert, parseCertificatePEM(certBytes, func(cert *x509.Certificate) (bool, error) {
 		returnedCert = cert
-		return false // stop after first cert, will error if there are more
+		return false, nil // stop after first cert, will error if there are more
 	})
 }
 
 // DecodeAllCertificatesFromPEM will decode a concatenated list of PEM encoded x509 Certificates.
 func DecodeAllCertificatesFromPEM(certBytes []byte) ([]*x509.Certificate, error) {
 	var returnedCerts []*x509.Certificate
-	return returnedCerts, parseCertificatePEM(certBytes, func(cert *x509.Certificate) bool {
+	return returnedCerts, parseCertificatePEM(certBytes, func(cert *x509.Certificate) (bool, error) {
 		returnedCerts = append(returnedCerts, cert)
-		return true
+		return true, nil
 	})
 }
 

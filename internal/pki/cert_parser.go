@@ -32,7 +32,7 @@ import (
 //     If the callback returns false and there remains unread non-whitespace input,
 //     the function returns an error about extra data; if no extra data remains, the
 //     function returns nil.
-func parseCertificatePEM(pemData []byte, addCert func(*x509.Certificate) bool) error {
+func parseCertificatePEM(pemData []byte, addCert func(*x509.Certificate) (bool, error)) error {
 	if pemData == nil {
 		return fmt.Errorf("certificate data can't be nil")
 	}
@@ -68,7 +68,9 @@ func parseCertificatePEM(pemData []byte, addCert func(*x509.Certificate) bool) e
 			return fmt.Errorf("invalid PEM block in bundle: parsed certificate is nil")
 		}
 
-		if !addCert(certificate) {
+		if cont, err := addCert(certificate); err != nil {
+			return err
+		} else if !cont {
 			break
 		}
 	}
