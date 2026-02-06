@@ -1,0 +1,60 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: example-webhook-sa
+  namespace: smoke-namespace
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: example-webhook-role
+  namespace: smoke-namespace
+rules:
+  # Allow managing the CA Secret
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "watch", "create", "patch"]
+    resourceNames: ["example-webhook-ca"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: example-webhook-role-binding
+  namespace: smoke-namespace
+subjects:
+  - kind: ServiceAccount
+    name: example-webhook-sa
+    namespace: smoke-namespace
+roleRef:
+  kind: Role
+  name: example-webhook-role
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: example-webhook-clusterrole
+rules:
+  # Allow listing webhook configurations to check if patching is needed
+  - apiGroups: ["admissionregistration.k8s.io"]
+    resources: ["validatingwebhookconfigurations"]
+    verbs: ["get", "list", "watch"]
+
+  # Allow patching the webhook configuration to inject the CA bundle
+  - apiGroups: ["admissionregistration.k8s.io"]
+    resources: ["validatingwebhookconfigurations"]
+    verbs: ["patch"]
+    resourceNames: ["example-webhook-validating"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: example-webhook-clusterrole-binding
+subjects:
+  - kind: ServiceAccount
+    name: example-webhook-sa
+    namespace: smoke-namespace
+roleRef:
+  kind: ClusterRole
+  name: example-webhook-clusterrole
+  apiGroup: rbac.authorization.k8s.io

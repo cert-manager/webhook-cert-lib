@@ -1,0 +1,19 @@
+sequenceDiagram
+    participant Time
+    participant Auth as Authority
+    participant Secret as CA Secret
+    participant VWC as WebhookConfig
+    
+    Time->>Auth: Trigger renewal (60-70% of lifetime)
+    Auth->>Secret: 1. Generate new CA (pending)
+    Note right of Secret: Secret contains:<br/>- Serving CA (old)<br/>- Pending CA (new)<br/>- Trust bundle (old + new)
+    
+    Auth->>VWC: 2. Inject bundle (serving + pending)
+    Note right of VWC: Clients now trust<br/>BOTH old and new CAs
+    
+    Auth->>Auth: 3. Wait PromotionDelay (e.g. 2s)
+    
+    Auth->>Secret: 4. Promote pending to serving
+    Note right of Secret: Secret contains:<br/>- Serving CA (new)<br/>- Trust bundle (old + new)
+    
+    Auth->>Auth: 5. Issue new leaf certificate<br/> (signed by new serving CA)

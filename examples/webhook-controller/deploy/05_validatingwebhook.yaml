@@ -1,0 +1,29 @@
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: example-webhook-validating
+  labels:
+    cert-manager.io/inject-dynamic-ca-from-secret-name: "example-webhook-ca"
+    cert-manager.io/inject-dynamic-ca-from-secret-namespace: "smoke-namespace"
+webhooks:
+  - name: example-webhook.k8s.io
+    admissionReviewVersions:
+      - v1
+    sideEffects: None
+    failurePolicy: Fail
+    matchPolicy: Equivalent
+    clientConfig:
+      service:
+        name: example-webhook
+        namespace: smoke-namespace
+        path: "/validate"
+        port: 443
+      # CA bundle will be injected by the Authority controller; keep empty here.
+      caBundle: ""
+    rules:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        resources: ["configmaps"]
+        operations: ["CREATE"]
+        scope: Namespaced
+    timeoutSeconds: 10
