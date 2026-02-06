@@ -2,3 +2,11 @@ CONSIDER:
 - add support for prometheus pod monitor:
    - https://doc.crds.dev/github.com/prometheus-operator/prometheus-operator/monitoring.coreos.com/PodMonitor/v1@v0.76.0#spec-podMetricsEndpoints-tlsConfig-ca
    - inject trust bundle into ConfigMap that we refer to using the PodMonitor object
+- reconsider leader election system
+- reconsider what keys to use in the Secret
+   - we should try to make it possible to issue the CA using cert-manager
+- consider adding different sources:
+   - dynamic self-signed
+   - dynamic cert-manager
+   - static filesystem
+- improve the UX: in the example make the config more transparent (eg. configure Secret name through flag)
