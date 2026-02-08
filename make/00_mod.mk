@@ -1,4 +1,4 @@
-# Copyright 2023 The cert-manager Authors.
+# Copyright 2026 The cert-manager Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,6 +14,19 @@
 
 repo_name := github.com/cert-manager/webhook-cert-lib
 
-golangci_lint_config := .golangci.yaml
+kind_cluster_name := webhook-cert-lib
+kind_cluster_config := $(bin_dir)/scratch/kind_cluster.yaml
 
-GINKGO_VERSION ?= $(shell awk '/ginkgo\/v2/ {print $$2}' test/go.mod)
+build_names := manager
+
+go_manager_main_dir := .
+go_manager_mod_dir := ./examples/webhook-controller
+go_manager_ldflags := -X main.Version=$(VERSION)
+oci_manager_base_image_flavor := static
+oci_manager_image_tag := $(VERSION)
+oci_manager_image_name_development := cert-manager.local/webhook-controller
+
+deploy_name := webhook-cert-lib
+deploy_namespace := cert-manager
+
+golangci_lint_config := .golangci.yaml

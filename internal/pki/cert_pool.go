@@ -20,10 +20,12 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"crypto/x509"
+	"encoding/base32"
 	"encoding/pem"
 	"fmt"
 	"maps"
 	"slices"
+	"strings"
 	"time"
 )
 
@@ -114,4 +116,22 @@ func (cp *CertPool) Certificates() []*x509.Certificate {
 		orderedCertificates = append(orderedCertificates, cp.certificates[hash])
 	}
 	return orderedCertificates
+}
+
+func (cp *CertPool) HashString() string {
+	return HashString(CertificatesHash(cp.Certificates()...))
+}
+
+func HashString(hash [sha256.Size]byte) string {
+	return strings.TrimRight(base32.HexEncoding.EncodeToString(hash[:]), "=")
+}
+
+func CertificatesHash(certs ...*x509.Certificate) [sha256.Size]byte {
+	hash := sha256.New()
+	for _, cert := range certs {
+		_, _ = hash.Write(cert.Raw)
+	}
+	var certsHash [sha256.Size]byte
+	_ = hash.Sum(certsHash[:0])
+	return certsHash
 }

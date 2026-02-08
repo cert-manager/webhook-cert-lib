@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # Copyright 2026 The cert-manager Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,23 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-.PHONY: test-unit
-## Unit tests
-## @category Testing
-test-unit: | $(NEEDS_GOTESTSUM) $(ARTIFACTS)
-	$(GOTESTSUM) \
-		--junitfile=$(ARTIFACTS)/junit-go-e2e.xml \
-		-- \
-		-coverprofile=$(ARTIFACTS)/filtered.cov \
-		./...
-
-.PHONY: test-fake
-## Fake tests (using testing/synctest)
-## @category Testing
-test-fake: | $(ARTIFACTS)
-	cd ./test/ && \
-	$(GOTESTSUM) \
-		--junitfile=$(CURDIR)/$(ARTIFACTS)/junit-go-e2e.xml \
-		-- \
-		-coverprofile=$(CURDIR)/$(ARTIFACTS)/filtered.cov \
-		./...
+while true; do
+    kubectl delete configmap test || true
+    kubectl create configmap test || true
+done

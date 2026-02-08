@@ -1,0 +1,20 @@
+graph TD
+    APIServer[API Server]
+    Webhook[Webhook Server]
+    VWC[ValidatingWebhookConfiguration]
+
+    APIServer -->|Validation Request| Webhook
+    VWC .->|References webhook| Webhook
+    VWC .->|Read by| APIServer
+    
+    subgraph "webhook-cert-lib"
+        Authority[Authority Controller]
+        Secret[Secret]
+        
+        Authority -->|1. Manages pending & serving CAs and keys| Secret
+        Authority -->|2. Injects CAs| VWC
+        Authority -->|3. Issues Leaf Cert| Webhook
+    end
+    
+    style Secret fill:gray,stroke:#333
+    style VWC fill:gray,stroke:#333

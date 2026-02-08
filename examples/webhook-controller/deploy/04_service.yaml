@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: example-webhook
+  namespace: smoke-namespace
+spec:
+  selector:
+    app: example-webhook
+  ports:
+    - name: https
+      port: 443
+      targetPort: webhook
+      protocol: TCP
