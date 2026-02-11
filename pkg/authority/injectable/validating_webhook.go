@@ -17,48 +17,145 @@ limitations under the License.
 package injectable
 
 import (
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	admissionregistrationv1ac "k8s.io/client-go/applyconfigurations/admissionregistration/v1"
+	"bytes"
+	"context"
+	"iter"
+	"time"
 
-	"github.com/cert-manager/webhook-cert-lib/pkg/runtime"
+	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
+	admissionregistrationv1ac "k8s.io/client-go/applyconfigurations/admissionregistration/v1"
+	admissionregistrationinformers "k8s.io/client-go/informers/admissionregistration/v1"
+	"k8s.io/client-go/informers/internalinterfaces"
+	"k8s.io/client-go/kubernetes"
+	admissionregistrationlisters "k8s.io/client-go/listers/admissionregistration/v1"
+	"k8s.io/client-go/tools/cache"
 )
 
 type ValidatingWebhookCaBundleInject struct {
 }
 
-var _ Injectable = &ValidatingWebhookCaBundleInject{}
+var _ InjectableKind = &ValidatingWebhookCaBundleInject{}
 
-func (i *ValidatingWebhookCaBundleInject) GroupVersionKind() schema.GroupVersionKind {
-	return schema.GroupVersionKind{
-		Group:   "admissionregistration.k8s.io",
-		Version: "v1",
-		Kind:    "ValidatingWebhookConfiguration",
+func (i ValidatingWebhookCaBundleInject) GroupVersionKind() schema.GroupVersionKind {
+	return admissionregistrationv1.
+		SchemeGroupVersion.
+		WithKind("ValidatingWebhookConfiguration")
+}
+
+func (i *ValidatingWebhookCaBundleInject) ExampleObject() runtime.Object {
+	return &admissionregistrationv1.
+		ValidatingWebhookConfiguration{}
+}
+
+func (i *ValidatingWebhookCaBundleInject) NewInformerAndListPatcher(
+	client kubernetes.Interface,
+	resyncPeriod time.Duration,
+	indexers cache.Indexers,
+	tweakListOptions internalinterfaces.TweakListOptionsFunc,
+) (cache.SharedIndexInformer, ListPatcher) {
+	informer := admissionregistrationinformers.NewFilteredValidatingWebhookConfigurationInformer(
+		client, resyncPeriod, indexers, tweakListOptions,
+	)
+	_ = informer.SetTransform(func(obj any) (any, error) {
+		vwc := obj.(*admissionregistrationv1.ValidatingWebhookConfiguration)
+
+		// Only retain the fields we care about for CABundle injection
+		vwc.ObjectMeta = metav1.ObjectMeta{
+			Name:            vwc.Name,
+			Namespace:       vwc.Namespace,
+			UID:             vwc.UID,
+			ResourceVersion: vwc.ResourceVersion,
+		}
+
+		for index, webhook := range vwc.Webhooks {
+			vwc.Webhooks[index] = admissionregistrationv1.ValidatingWebhook{
+				Name: webhook.Name,
+				ClientConfig: admissionregistrationv1.WebhookClientConfig{
+					CABundle: webhook.ClientConfig.CABundle,
+				},
+			}
+		}
+
+		return vwc, nil
+	})
+	return informer, &ValidatingWebhookCaBundleInjectListPatcher{
+		Client: client,
+		Lister: admissionregistrationlisters.NewValidatingWebhookConfigurationLister(informer.GetIndexer()),
 	}
 }
 
-func (i *ValidatingWebhookCaBundleInject) InjectCA(obj *unstructured.Unstructured, caBundle []byte) (runtime.ApplyConfiguration, error) {
-	// TODO: Can we generalize this function for any resource based on a JSON path?
+type ValidatingWebhookCaBundleInjectListPatcher struct {
+	Client kubernetes.Interface
+	Lister admissionregistrationlisters.ValidatingWebhookConfigurationLister
+}
 
-	ac := admissionregistrationv1ac.ValidatingWebhookConfiguration(obj.GetName())
+var _ ListPatcher = &ValidatingWebhookCaBundleInjectListPatcher{}
 
-	webhooks, _, err := unstructured.NestedSlice(obj.Object, "webhooks")
+func (i *ValidatingWebhookCaBundleInjectListPatcher) ListObjects(caBundle []byte) (iter.Seq2[types.NamespacedName, IsUpToDate], error) {
+	vwcs, err := i.Lister.List(labels.Everything())
 	if err != nil {
 		return nil, err
 	}
-	for _, w := range webhooks {
-		name, _, err := unstructured.NestedString(w.(map[string]any), "name")
-		if err != nil {
-			return nil, err
+
+	return func(yield func(types.NamespacedName, IsUpToDate) bool) {
+		for _, vwc := range vwcs {
+			isUpToDate := true
+			for i := range vwc.Webhooks {
+				if !bytes.Equal(vwc.Webhooks[i].ClientConfig.CABundle, caBundle) {
+					isUpToDate = false
+					break
+				}
+			}
+
+			if !yield(types.NamespacedName{Name: vwc.Name}, IsUpToDate(isUpToDate)) {
+				return
+			}
 		}
+	}, nil
+}
+
+func (i *ValidatingWebhookCaBundleInjectListPatcher) PatchObject(
+	ctx context.Context, key types.NamespacedName, caBundle []byte,
+	applyOptions metav1.ApplyOptions,
+) (bool, error) {
+	vwc, err := i.Lister.Get(key.Name)
+	if err != nil {
+		return false, err
+	}
+
+	// If the current object already contains the desired CABundle for all
+	// webhooks, there's no need to call Apply.
+	{
+		needsPatch := false
+		for idx := range vwc.Webhooks {
+			if !bytes.Equal(vwc.Webhooks[idx].ClientConfig.CABundle, caBundle) {
+				needsPatch = true
+				break
+			}
+		}
+		if !needsPatch {
+			return false, nil
+		}
+	}
+
+	ac := admissionregistrationv1ac.
+		ValidatingWebhookConfiguration(vwc.Name)
+
+	for _, w := range vwc.Webhooks {
 		ac.WithWebhooks(
 			admissionregistrationv1ac.ValidatingWebhook().
-				WithName(name).
+				WithName(w.Name).
 				WithClientConfig(admissionregistrationv1ac.WebhookClientConfig().
 					WithCABundle(caBundle...),
 				),
 		)
 	}
 
-	return ac, nil
+	_, err = i.Client.AdmissionregistrationV1().ValidatingWebhookConfigurations().Apply(ctx, ac, applyOptions)
+	return true, err
 }

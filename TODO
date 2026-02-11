@@ -1,9 +1,12 @@
-MUST:
-- make sure to re-reconcile certificates before they expire
-- Scope down controller RBAC to single CA Secret resource.
-- Use cli flags in the program to list the injectables, allowing use to scope down the injectable RBAC.
-
 CONSIDER:
-- maybe remove dependency on controller-runtime (use client-go directly instead)
-- maybe support all controller-runtime Server types: webhook and metrics (might require rebranding)
-- Can we make the solution leader-election-less? Does it make sense that we use the existing cr leader election or should we create a separate leader-election just for the logic in this library?
+- add support for prometheus pod monitor:
+   - https://doc.crds.dev/github.com/prometheus-operator/prometheus-operator/monitoring.coreos.com/PodMonitor/v1@v0.76.0#spec-podMetricsEndpoints-tlsConfig-ca
+   - inject trust bundle into ConfigMap that we refer to using the PodMonitor object
+- reconsider leader election system
+- reconsider what keys to use in the Secret
+   - we should try to make it possible to issue the CA using cert-manager
+- consider adding different sources:
+   - dynamic self-signed
+   - dynamic cert-manager
+   - static filesystem
+- improve the UX: in the example make the config more transparent (eg. configure Secret name through flag)

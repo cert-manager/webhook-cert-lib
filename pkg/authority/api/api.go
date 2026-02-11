@@ -16,6 +16,8 @@ limitations under the License.
 
 package api
 
+import corev1 "k8s.io/api/core/v1"
+
 const (
 	// DynamicAuthoritySecretLabel will - if set to "true" - make the dynamic
 	// authority CA controller inject and maintain a dynamic CA.
@@ -35,16 +37,30 @@ const (
 	// Must be used in conjunction with WantInjectFromSecretNamespaceLabel.
 	WantInjectFromSecretNameLabel = "cert-manager.io/inject-dynamic-ca-from-secret-name" //#nosec G101 - This is not credentials
 
-	// TLSCABundleKey is used as a data key in Secret resources to store a CA
-	// certificate bundle.
-	TLSCABundleKey = "ca-bundle.crt"
+	// TLSPendingCertKey stores a pending (new) CA cert PEM while it is being
+	// propagated to targets. It will be promoted to `tls_serving.crt` after
+	// `Options.PropagationDelay` has elapsed since the rotation timestamp.
+	TLSPendingCertKey = corev1.TLSCertKey
 
-	// RenewCertificateSecretAnnotation is an annotation that can be set to
-	// an arbitrary value on a certificate secret to trigger a renewal of the
-	// certificate managed in the secret.
-	RenewCertificateSecretAnnotation = "renew.cert-manager.io/requestedAt" //#nosec G101 - This is not credentials
-	// RenewHandledCertificateSecretAnnotation is an annotation that will be set on a
-	// certificate secret whenever a new certificate is renewed using the
-	// RenewCertificateSecretAnnotation annotation.
-	RenewHandledCertificateSecretAnnotation = "renew.cert-manager.io/lastRequestedAt" //#nosec G101 - This is not credentials
+	// TLSPendingPrivateKeyKey stores the private key corresponding to the
+	// pending cert in `TLSPendingCertKey`.
+	TLSPendingPrivateKeyKey = corev1.TLSPrivateKeyKey
+
+	TLSServingCertKey       = "tls_serving.crt"
+	TLSServingPrivateKeyKey = "tls_serving.key"
+
+	TLSAllTrustedCertsKey = "all_trusted_certs.crt"
+
+	IssuingAuthorityIDAnnotation = "cert-manager.io/issuing-authority-id"
+
+	// InjectedAtTimestampAnnotation marks the time the pending cert has been added
+	// to all trust stores. It is used to decide when it can be promoted to serving.
+	// It corresponds to the version specified in InjectedLastVersionAnnotation.
+	InjectedAtTimestampAnnotation = "cert-manager.io/injected-at-timestamp"
+
+	// InjectedLastVersionAnnotation marks the last version of the secret that
+	// has been injected into all targets. It is updated at the same time as
+	// InjectedAtTimestampAnnotation. It is the hash of the bundle that was
+	// injected.
+	InjectedLastVersionAnnotation = "cert-manager.io/injected-last-version"
 )
