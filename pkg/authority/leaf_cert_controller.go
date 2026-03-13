@@ -69,7 +69,7 @@ func (r *LeafCertReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 }
 
 func (r *LeafCertReconciler) generateCertificate(caSecret *corev1.Secret) (cert *x509.Certificate, pk crypto.Signer, err error) {
-	caCert, err := pki.DecodeCertificateFromPEM(caSecret.Data[corev1.TLSCertKey])
+	caCert, err := pki.DecodeCertificateFromPEM(pki.NewCertParser(), caSecret.Data[corev1.TLSCertKey])
 	if err != nil {
 		return cert, pk, err
 	}
@@ -79,6 +79,7 @@ func (r *LeafCertReconciler) generateCertificate(caSecret *corev1.Secret) (cert 
 	}
 
 	cert, pk, err = certificate.GenerateLeaf(
+		pki.NewCertParser(),
 		r.LeafOptions.DNSNames,
 		r.LeafOptions.Duration,
 		caCert, caPk,

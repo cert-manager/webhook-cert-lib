@@ -20,10 +20,12 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"crypto/x509"
+	"encoding/base32"
 	"encoding/pem"
 	"fmt"
 	"maps"
 	"slices"
+	"strings"
 	"time"
 )
 
@@ -69,9 +71,9 @@ func (cp *CertPool) addCert(now time.Time, cert *x509.Certificate) error {
 	return nil
 }
 
-func (cp *CertPool) AddCertificatesFromPEM(pemData []byte) error {
+func (cp *CertPool) AddCertificatesFromPEM(parser *CertParser, pemData []byte) error {
 	now := time.Now()
-	return parseCertificatePEM(pemData, func(cert *x509.Certificate) (bool, error) {
+	return parser.parseCertificatePEM(pemData, func(cert *x509.Certificate) (bool, error) {
 		if err := cp.addCert(now, cert); err != nil {
 			return false, err
 		}
@@ -114,4 +116,22 @@ func (cp *CertPool) Certificates() []*x509.Certificate {
 		orderedCertificates = append(orderedCertificates, cp.certificates[hash])
 	}
 	return orderedCertificates
+}
+
+func (cp *CertPool) HashString() string {
+	return HashString(CertificatesHash(cp.Certificates()...))
+}
+
+func HashString(hash [sha256.Size]byte) string {
+	return strings.TrimRight(base32.HexEncoding.EncodeToString(hash[:]), "=")
+}
+
+func CertificatesHash(certs ...*x509.Certificate) [sha256.Size]byte {
+	hash := sha256.New()
+	for _, cert := range certs {
+		_, _ = hash.Write(cert.Raw)
+	}
+	var certsHash [sha256.Size]byte
+	_ = hash.Sum(certsHash[:0])
+	return certsHash
 }

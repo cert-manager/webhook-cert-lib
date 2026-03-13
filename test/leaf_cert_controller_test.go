@@ -61,7 +61,7 @@ var _ = Describe("Leaf Certificate Controller", Ordered, func() {
 		ns.Name = opts.CAOptions.Namespace
 		Expect(k8sClient.Create(ctx, ns)).To(Succeed())
 
-		caCert, caPK, err := certificate.GenerateCA(opts.CAOptions.Duration)
+		caCert, caPK, err := certificate.GenerateCA(pki.NewCertParser(), opts.CAOptions.Duration)
 		Expect(err).ToNot(HaveOccurred())
 		caCertBytes, err := pki.EncodeCertificateAsPEM(caCert)
 		Expect(err).ToNot(HaveOccurred())
