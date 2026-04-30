@@ -72,7 +72,7 @@ func newValidatingWebhookForTest(name string) admissionregistrationv1.Validating
 		AdmissionReviewVersions: []string{"v1"},
 		SideEffects:             ptr.To(admissionregistrationv1.SideEffectClassNone),
 		ClientConfig: admissionregistrationv1.WebhookClientConfig{
-			URL: ptr.To("https://" + name),
+			URL: new("https://" + name),
 		},
 	}
 }
