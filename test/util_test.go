@@ -42,9 +42,9 @@ func assertCASecret(secret *corev1.Secret) {
 		)),
 	))
 
-	cert, err := pki.DecodeCertificateFromPEM(secret.Data[corev1.TLSCertKey])
+	cert, err := pki.DecodeCertificateFromPEM(pki.NewCertParser(), secret.Data[corev1.TLSCertKey])
 	Expect(err).ToNot(HaveOccurred())
-	caBundle, err := pki.DecodeAllCertificatesFromPEM(secret.Data[api.TLSCABundleKey])
+	caBundle, err := pki.DecodeAllCertificatesFromPEM(pki.NewCertParser(), secret.Data[api.TLSCABundleKey])
 	Expect(err).ToNot(HaveOccurred())
 
 	Expect(secretPublicKeysDiffer(secret)).To(BeFalse())
@@ -82,7 +82,7 @@ func secretPublicKeysDiffer(secret *corev1.Secret) (bool, error) {
 	if err != nil {
 		return true, fmt.Errorf("secret contains invalid private key data: %w", err)
 	}
-	x509Cert, err := pki.DecodeCertificateFromPEM(secret.Data[corev1.TLSCertKey])
+	x509Cert, err := pki.DecodeCertificateFromPEM(pki.NewCertParser(), secret.Data[corev1.TLSCertKey])
 	if err != nil {
 		return true, fmt.Errorf("secret contains an invalid certificate: %w", err)
 	}
