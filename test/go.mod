@@ -6,7 +6,7 @@ replace github.com/cert-manager/webhook-cert-lib => ../
 
 require (
 	github.com/cert-manager/webhook-cert-lib v0.0.0-00010101000000-000000000000
-	github.com/onsi/ginkgo/v2 v2.31.0
+	github.com/onsi/ginkgo/v2 v2.32.0
 	github.com/onsi/gomega v1.42.0
 	k8s.io/api v0.36.2
 	k8s.io/apimachinery v0.36.2
