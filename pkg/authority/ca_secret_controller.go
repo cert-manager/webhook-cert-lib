@@ -87,12 +87,12 @@ func (r *CASecretReconciler) reconcileSecret(ctx context.Context, secret *corev1
 	if required, reason := caRequiresRegeneration(secret); required {
 		log.FromContext(ctx).Info("Will regenerate CA", "reason", reason)
 
-		caCert, caPk, err = certificate.GenerateCA(r.CAOptions.Duration)
+		caCert, caPk, err = certificate.GenerateCA(pki.NewCertParser(), r.CAOptions.Duration)
 		if err != nil {
 			return caCert, err
 		}
 	} else {
-		caCert, err = pki.DecodeCertificateFromPEM(secret.Data[corev1.TLSCertKey])
+		caCert, err = pki.DecodeCertificateFromPEM(pki.NewCertParser(), secret.Data[corev1.TLSCertKey])
 		if err != nil {
 			return caCert, err
 		}
@@ -136,7 +136,7 @@ func (r *CASecretReconciler) reconcileSecret(ctx context.Context, secret *corev1
 func addCertToCABundle(ctx context.Context, caBundleBytes []byte, caCert *x509.Certificate) []byte {
 	certPool := pki.NewCertPool(pki.WithFilteredExpiredCerts(true))
 
-	if err := certPool.AddCertificatesFromPEM(caBundleBytes); err != nil {
+	if err := certPool.AddCertificatesFromPEM(pki.NewCertParser(), caBundleBytes); err != nil {
 		log.FromContext(ctx).Error(err, "failed to re-use existing CAs in new set of CAs")
 	}
 	// TODO: handle AddCertificate returning false? I expect this will never happen.
