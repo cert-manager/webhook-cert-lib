@@ -17,10 +17,44 @@ limitations under the License.
 package pki
 
 import (
+	"bytes"
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
+	"slices"
 )
+
+type CertParser struct {
+	parsedCerts []parsedCert
+}
+
+func NewCertParser() *CertParser {
+	return &CertParser{}
+}
+
+type parsedCert struct {
+	certBytes   []byte
+	certificate *x509.Certificate
+	err         error
+}
+
+func (cp *CertParser) parseCertificateDER(certBytes []byte) (*x509.Certificate, error) {
+	i, found := slices.BinarySearchFunc(cp.parsedCerts, certBytes, func(a parsedCert, b []byte) int {
+		return bytes.Compare(a.certBytes, b)
+	})
+	if found {
+		parsedCert := cp.parsedCerts[i]
+		return parsedCert.certificate, parsedCert.err
+	}
+
+	certificate, err := x509.ParseCertificate(certBytes)
+	cp.parsedCerts = slices.Insert(cp.parsedCerts, i, parsedCert{
+		certBytes:   certBytes,
+		certificate: certificate,
+		err:         err,
+	})
+	return certificate, err
+}
 
 // parseCertificatePEM strictly validates a given input PEM bundle to confirm it contains
 // only valid CERTIFICATE PEM blocks. If successful, returns nil and invokes addCert for
@@ -32,7 +66,7 @@ import (
 //     If the callback returns false and there remains unread non-whitespace input,
 //     the function returns an error about extra data; if no extra data remains, the
 //     function returns nil.
-func parseCertificatePEM(pemData []byte, addCert func(*x509.Certificate) (bool, error)) error {
+func (cp *CertParser) parseCertificatePEM(pemData []byte, addCert func(*x509.Certificate) (bool, error)) error {
 	if pemData == nil {
 		return fmt.Errorf("certificate data can't be nil")
 	}
@@ -59,7 +93,7 @@ func parseCertificatePEM(pemData []byte, addCert func(*x509.Certificate) (bool, 
 			return fmt.Errorf("invalid PEM block in bundle: PEM headers are not permitted")
 		}
 
-		certificate, err := x509.ParseCertificate(block.Bytes)
+		certificate, err := cp.parseCertificateDER(block.Bytes)
 		if err != nil {
 			return fmt.Errorf("invalid PEM block in bundle: failed to parse certificate: %w", err)
 		}
