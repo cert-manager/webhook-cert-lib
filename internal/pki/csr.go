@@ -34,7 +34,7 @@ import (
 // publicKey is the public key of the signee, and signerKey is the private
 // key of the signer.
 // It returns a parsed *x509.Certificate on success.
-func SignCertificate(template *x509.Certificate, issuerCert *x509.Certificate, publicKey crypto.PublicKey, signerKey any) (*x509.Certificate, error) {
+func SignCertificate(certParser *CertParser, template *x509.Certificate, issuerCert *x509.Certificate, publicKey crypto.PublicKey, signerKey any) (*x509.Certificate, error) {
 	typedSigner, ok := signerKey.(crypto.Signer)
 	if !ok {
 		return nil, fmt.Errorf("didn't get an expected Signer in call to SignCertificate")
@@ -77,7 +77,7 @@ func SignCertificate(template *x509.Certificate, issuerCert *x509.Certificate, p
 		return nil, fmt.Errorf("error creating x509 certificate: %w", err)
 	}
 
-	cert, err := x509.ParseCertificate(derBytes)
+	cert, err := DecodeCertificateFromDER(certParser, derBytes)
 	if err != nil {
 		return nil, fmt.Errorf("error decoding DER certificate bytes: %w", err)
 	}
