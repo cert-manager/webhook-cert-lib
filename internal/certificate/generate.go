@@ -29,6 +29,7 @@ import (
 )
 
 func GenerateLeaf(
+	certParser *pki.CertParser,
 	leafDNSNames []string,
 	leafDuration time.Duration,
 	caCert *x509.Certificate, caPk crypto.PrivateKey,
@@ -61,11 +62,12 @@ func GenerateLeaf(
 	}
 
 	// Sign certificate using CA
-	cert, err := pki.SignCertificate(template, caCert, pk.Public(), caPk)
+	cert, err := pki.SignCertificate(certParser, template, caCert, pk.Public(), caPk)
 	return cert, pk, err
 }
 
 func GenerateCA(
+	certParser *pki.CertParser,
 	caDuration time.Duration,
 ) (*x509.Certificate, crypto.Signer, error) {
 	pk, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
@@ -94,6 +96,6 @@ func GenerateCA(
 	}
 
 	// self sign the root CA
-	cert, err := pki.SignCertificate(template, template, pk.Public(), pk)
+	cert, err := pki.SignCertificate(certParser, template, template, pk.Public(), pk)
 	return cert, pk, err
 }
